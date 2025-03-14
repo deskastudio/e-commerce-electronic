@@ -43,9 +43,9 @@ const newArrivals: Arrival[] = [
 
 export default function NewArrivals() {
   return (
-    <section className="py-10">
+    <section className="mb-16">
       <div className="mb-6 flex items-center gap-4">
-        <div className="h-10 w-5 bg-primary" />
+        <div className="h-10 w-1 bg-primary" />
         <h2 className="text-xl font-semibold">Featured</h2>
       </div>
 

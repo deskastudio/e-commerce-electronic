@@ -99,10 +99,10 @@ const exploreProducts: Product[] = [
 
 export default function ExploreProducts() {
   return (
-    <section className="py-10">
+    <section className="mb-16">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="h-10 w-5 bg-primary" />
+          <div className="h-10 w-1 bg-primary" />
           <h2 className="text-xl font-semibold">Our Products</h2>
         </div>
         <div className="flex items-center gap-4">
@@ -168,7 +168,9 @@ export default function ExploreProducts() {
       </div>
 
       <div className="mt-8 flex justify-center">
-        <Button variant="default">View All Products</Button>
+        <Button variant="default" className="bg-primary text-white">
+          View All Products
+        </Button>
       </div>
     </section>
   )

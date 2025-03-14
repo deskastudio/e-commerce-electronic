@@ -64,17 +64,6 @@ const flashSaleProducts: Product[] = [
     rating: 4.5,
     reviews: 99,
   },
-  {
-    id: 5,
-    name: "Modern Desk Lamp",
-    category: "Home",
-    image: "/placeholder.svg?height=200&width=200",
-    price: 50,
-    originalPrice: 75,
-    discount: 33,
-    rating: 4,
-    reviews: 65,
-  },
 ]
 
 export default function FlashSales() {
@@ -117,10 +106,10 @@ export default function FlashSales() {
   }, [])
 
   return (
-    <section className="py-10">
+    <section className="mb-16">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="h-10 w-5 bg-primary" />
+          <div className="h-10 w-1 bg-primary" />
           <h2 className="text-xl font-semibold">Flash Sales</h2>
         </div>
         <div className="flex items-center gap-4">
@@ -133,7 +122,7 @@ export default function FlashSales() {
         </div>
       </div>
 
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           <div className="flex flex-col items-center">
             <span className="text-sm text-muted-foreground">Days</span>
@@ -160,9 +149,9 @@ export default function FlashSales() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {flashSaleProducts.map((product) => (
-          <Card key={product.id} className="overflow-hidden">
+          <Card key={product.id} className="overflow-hidden border">
             <div className="relative pt-4">
               <Badge className="absolute left-4 top-6 bg-primary text-primary-foreground">-{product.discount}%</Badge>
               <Button
@@ -216,7 +205,9 @@ export default function FlashSales() {
       </div>
 
       <div className="mt-8 flex justify-center md:hidden">
-        <Button variant="default">View All Products</Button>
+        <Button variant="default" className="bg-primary text-white">
+          View All Products
+        </Button>
       </div>
     </section>
   )

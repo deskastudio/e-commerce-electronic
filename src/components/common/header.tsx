@@ -2,30 +2,18 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Search, ShoppingCart, Heart, User, Menu, X } from "lucide-react"
+import { Search, ShoppingCart, Heart, User, Menu, X, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
-
-const categories = [
-  "Women's Fashion",
-  "Men's Fashion",
-  "Electronics",
-  "Home & Lifestyle",
-  "Medicine",
-  "Sports & Outdoor",
-  "Baby's & Toys",
-  "Groceries & Pets",
-  "Health & Beauty",
-]
 
 export default function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background">
-      <div className="container flex h-16 items-center px-4 md:px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center px-4 md:px-6">
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden">
@@ -39,9 +27,20 @@ export default function Header() {
                 Exclusive
               </Link>
               <div className="grid gap-2 pt-4">
-                {categories.map((category) => (
-                  <Link key={category} href="#" className="flex items-center gap-2 text-sm font-medium">
+                {[
+                  "Women's Fashion",
+                  "Men's Fashion",
+                  "Electronics",
+                  "Home & Lifestyle",
+                  "Medicine",
+                  "Sports & Outdoor",
+                  "Baby's & Toys",
+                  "Groceries & Pets",
+                  "Health & Beauty",
+                ].map((category) => (
+                  <Link key={category} href="#" className="flex items-center justify-between text-sm font-medium">
                     {category}
+                    <ChevronRight className="h-4 w-4" />
                   </Link>
                 ))}
               </div>
@@ -78,7 +77,11 @@ export default function Header() {
           <div className={cn("hidden items-center md:flex", isSearchOpen ? "flex-1" : "")}>
             {isSearchOpen ? (
               <div className="relative flex w-full max-w-sm items-center">
-                <Input type="search" placeholder="What are you looking for?" className="pr-10" />
+                <Input
+                  type="search"
+                  placeholder="What are you looking for?"
+                  className="pr-10 rounded-md border-gray-300"
+                />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -90,10 +93,17 @@ export default function Header() {
                 </Button>
               </div>
             ) : (
-              <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
-                <Search className="h-5 w-5" />
-                <span className="sr-only">Search</span>
-              </Button>
+              <div className="relative flex items-center">
+                <Input
+                  type="search"
+                  placeholder="What are you looking for?"
+                  className="w-64 rounded-md border-gray-300"
+                />
+                <Button variant="ghost" size="icon" className="absolute right-0 top-0">
+                  <Search className="h-4 w-4" />
+                  <span className="sr-only">Search</span>
+                </Button>
+              </div>
             )}
           </div>
           <Button variant="ghost" size="icon">

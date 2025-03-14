@@ -1,5 +1,6 @@
+import type React from "react"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Smartphone, Monitor, Watch, Camera, Headphones, Gamepad } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Smartphone, Monitor, Watch, Camera, Headphones, Gamepad } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface Category {
@@ -50,10 +51,10 @@ const categories: Category[] = [
 
 export default function CategoryBrowser() {
   return (
-    <section className="py-10">
+    <section className="mb-16">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="h-10 w-5 bg-primary" />
+          <div className="h-10 w-1 bg-primary" />
           <h2 className="text-xl font-semibold">Categories</h2>
         </div>
         <div className="flex items-center gap-4">
@@ -65,10 +66,10 @@ export default function CategoryBrowser() {
           </Button>
         </div>
       </div>
-      
+
       <h2 className="mb-6 text-2xl font-bold">Browse By Category</h2>
-      
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+
+      <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {categories.map((category) => (
           <Link
             key={category.id}
@@ -77,15 +78,12 @@ export default function CategoryBrowser() {
               category.id === 4 ? "bg-primary" : ""
             }`}
           >
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full">
-              {category.icon}
-            </div>
-            <span className={`text-sm font-medium ${category.id === 4 ? "text-white" : ""}`}>
-              {category.name}
-            </span>
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full">{category.icon}</div>
+            <span className={`text-sm font-medium ${category.id === 4 ? "text-white" : ""}`}>{category.name}</span>
           </Link>
         ))}
       </div>
     </section>
   )
 }
+

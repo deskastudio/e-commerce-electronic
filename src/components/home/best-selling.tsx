@@ -1,5 +1,5 @@
 import Image from "next/image"
-import { Heart, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Heart, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -59,10 +59,10 @@ const bestSellingProducts: Product[] = [
 
 export default function BestSelling() {
   return (
-    <section className="py-10">
+    <section className="mb-16">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="h-10 w-5 bg-primary" />
+          <div className="h-10 w-1 bg-primary" />
           <h2 className="text-xl font-semibold">This Month</h2>
         </div>
         <div className="flex items-center gap-4">
@@ -74,21 +74,17 @@ export default function BestSelling() {
           </Button>
         </div>
       </div>
-      
+
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <h2 className="text-2xl font-bold">Best Selling Products</h2>
         <Button variant="outline">View All</Button>
       </div>
-      
+
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {bestSellingProducts.map((product) => (
           <Card key={product.id} className="overflow-hidden border-none shadow-none">
             <div className="relative bg-gray-100 p-4">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="absolute right-4 top-4 h-8 w-8 rounded-full bg-white"
-              >
+              <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-8 w-8 rounded-full bg-white">
                 <Heart className="h-4 w-4" />
               </Button>
               <div className="flex h-[200px] items-center justify-center">
@@ -105,9 +101,7 @@ export default function BestSelling() {
               <h3 className="font-medium">{product.name}</h3>
               <div className="mt-2 flex items-center gap-2">
                 <span className="font-semibold text-primary">${product.price}</span>
-                <span className="text-sm text-muted-foreground line-through">
-                  ${product.originalPrice}
-                </span>
+                <span className="text-sm text-muted-foreground line-through">${product.originalPrice}</span>
               </div>
               <div className="mt-2 flex items-center">
                 <div className="flex">
@@ -116,9 +110,7 @@ export default function BestSelling() {
                     .map((_, i) => (
                       <svg
                         key={i}
-                        className={`h-4 w-4 ${
-                          i < Math.floor(product.rating) ? "fill-yellow-400" : "fill-gray-300"
-                        }`}
+                        className={`h-4 w-4 ${i < Math.floor(product.rating) ? "fill-yellow-400" : "fill-gray-300"}`}
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                       >
@@ -126,9 +118,7 @@ export default function BestSelling() {
                       </svg>
                     ))}
                 </div>
-                <span className="ml-2 text-xs text-muted-foreground">
-                  ({product.reviews})
-                </span>
+                <span className="ml-2 text-xs text-muted-foreground">({product.reviews})</span>
               </div>
             </CardContent>
           </Card>
@@ -137,3 +127,4 @@ export default function BestSelling() {
     </section>
   )
 }
+

@@ -7,7 +7,7 @@ import { Send, Facebook, Twitter, Instagram, Github } from "lucide-react"
 export default function Footer() {
   return (
     <footer className="border-t bg-background">
-      <div className="container px-4 py-10 md:px-6">
+      <div className="mx-auto max-w-7xl px-4 py-10 md:px-6">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4">
             <Link href="/" className="text-xl font-bold tracking-tighter">
@@ -19,7 +19,7 @@ export default function Footer() {
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Input type="email" placeholder="Enter your email" className="pr-10" />
-                <Button size="icon" className="absolute right-0 top-0 h-full rounded-l-none">
+                <Button size="icon" className="absolute right-0 top-0 h-full rounded-l-none bg-primary text-white">
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
@@ -129,14 +129,14 @@ export default function Footer() {
           </div>
           <div className="flex items-center gap-2">
             <Image
-              src="/placeholder.svg?height=40&width=40"
+              src="/placeholder.svg?height=40&width=100"
               alt="App Store"
               width={100}
               height={30}
               className="h-8 w-auto"
             />
             <Image
-              src="/placeholder.svg?height=40&width=40"
+              src="/placeholder.svg?height=40&width=100"
               alt="Google Play"
               width={100}
               height={30}

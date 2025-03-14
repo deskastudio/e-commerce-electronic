@@ -31,7 +31,7 @@ const features: Feature[] = [
 
 export default function Features() {
   return (
-    <section className="py-10">
+    <section className="mb-16 py-10">
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
         {features.map((feature) => (
           <div key={feature.id} className="flex flex-col items-center justify-center text-center">
