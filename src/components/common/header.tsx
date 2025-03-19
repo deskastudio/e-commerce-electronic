@@ -67,7 +67,7 @@ export default function Header() {
             About
           </Link>
           <Link
-            href="/signup"
+            href="/register"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
           >
             Sign Up
