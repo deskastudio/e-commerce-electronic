@@ -1,16 +1,36 @@
-import type { ReactNode } from "react"
-import AdminSidebar from "@/components/admin/admin-sidebar"
+'use client';
+
+import type { ReactNode } from "react";
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import AdminSidebar from "@/components/admin/admin-sidebar";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  // In a real application, you would check for admin authentication here
-  // For example:
-  // const session = await getServerSession(authOptions)
-  // if (!session || session.user.role !== "admin") {
-  //   redirect("/login")
-  // }
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
 
-  // For demo purposes, we'll just render the admin layout
-  // In a real app, you would implement proper authentication
+  useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (status === 'unauthenticated' || !session?.user.isAdmin) {
+      router.push('/auth/login?callbackUrl=/admin');
+    } else {
+      setIsLoading(false);
+    }
+  }, [status, session, router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Loading...</h2>
+          <p>Memverifikasi akses admin...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -19,6 +39,5 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <main className="p-6">{children}</main>
       </div>
     </div>
-  )
+  );
 }
-
