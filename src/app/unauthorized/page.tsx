@@ -26,7 +26,7 @@ export default function UnauthorizedPage() {
           </Button>
           <Button 
             variant="destructive" 
-            onClick={() => signOut({ callbackUrl: '/auth/login' })}
+            onClick={() => signOut({ callbackUrl: '/login' })}
           >
             Logout
           </Button>

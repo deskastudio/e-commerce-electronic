@@ -1,7 +1,9 @@
+// components/admin/admin-sidebar.tsx
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { LayoutDashboard, Package, ShoppingCart, Users, Settings, LogOut, BarChart3, Tags } from "lucide-react"
 
 const sidebarItems = [
@@ -44,6 +46,12 @@ const sidebarItems = [
 
 export default function AdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await signOut({ redirect: false })
+    router.push('/login') // Sesuaikan dengan URL login Anda
+  }
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-white">
@@ -70,15 +78,14 @@ export default function AdminSidebar() {
         </nav>
       </div>
       <div className="mt-auto border-t p-4">
-        <Link
-          href="/admin/logout"
+        <button
+          onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all hover:bg-gray-100"
         >
           <LogOut className="h-5 w-5" />
           Logout
-        </Link>
+        </button>
       </div>
     </div>
   )
 }
-

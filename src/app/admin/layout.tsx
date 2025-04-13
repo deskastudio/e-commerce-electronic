@@ -1,12 +1,23 @@
+// app/admin/layout.tsx
 'use client';
 
 import type { ReactNode } from "react";
-import { useSession } from 'next-auth/react';
+import { useSession, SessionProvider } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AdminSidebar from "@/components/admin/admin-sidebar";
 
+// Wrapper component with SessionProvider
 export default function AdminLayout({ children }: { children: ReactNode }) {
+  return (
+    <SessionProvider>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </SessionProvider>
+  );
+}
+
+// Content component that uses useSession
+function AdminLayoutContent({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -14,9 +25,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status === 'loading') return;
     
-    if (status === 'unauthenticated' || !session?.user.isAdmin) {
-      router.push('/auth/login?callbackUrl=/admin');
+    if (status === 'unauthenticated') {
+      // If not authenticated at all, redirect to login
+      router.push('/login?callbackUrl=/admin');
+    } else if (session && !session.user.isAdmin) {
+      // If authenticated but not an admin, redirect to home
+      console.log('User is not an admin, redirecting to home');
+      router.push('/');
     } else {
+      // If admin, show content
       setIsLoading(false);
     }
   }, [status, session, router]);

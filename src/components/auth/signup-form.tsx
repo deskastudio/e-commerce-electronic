@@ -1,33 +1,35 @@
+// components/auth/signup-form.tsx
 "use client"
 
 import { useState } from "react"
 import Link from "next/link"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "next/navigation"
+import { z } from "zod"
 import { useForm } from "react-hook-form"
-import * as z from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 
 const signUpSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+  name: z.string().min(2, "Nama minimal 2 karakter"),
   emailOrPhone: z
     .string()
-    .min(1, "Email or phone number is required")
+    .min(1, "Email atau nomor telepon harus diisi")
     .refine((value) => {
-      // Basic email validation
+      // Validasi email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      // Basic phone validation (adjust according to your needs)
+      // Validasi nomor telepon
       const phoneRegex = /^\+?[\d\s-]{8,}$/
 
       return emailRegex.test(value) || phoneRegex.test(value)
-    }, "Please enter a valid email or phone number"),
+    }, "Masukkan email atau nomor telepon yang valid"),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
+    .min(8, "Password minimal 8 karakter")
     .regex(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+      "Password harus mengandung minimal satu huruf besar, satu huruf kecil, dan satu angka",
     ),
 })
 
@@ -35,6 +37,9 @@ type SignUpValues = z.infer<typeof signUpSchema>
 
 export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const router = useRouter()
 
   const form = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
@@ -47,74 +52,128 @@ export default function SignUpForm() {
 
   async function onSubmit(data: SignUpValues) {
     setIsLoading(true)
+    setErrorMessage(null)
 
     try {
-      // Add your sign up logic here
-      console.log(data)
+      // Determine if input is email or phone
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.emailOrPhone);
+      
+      // Prepare user data
+      const userData = {
+        name: data.name,
+        password: data.password,
+        role: "user", // Always set role to "user" for registration
+        ...(isEmail 
+          ? { email: data.emailOrPhone } 
+          : { phone: data.emailOrPhone })
+      };
+      
+      console.log("Registering user with data:", userData);
+      
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || 'Registrasi gagal');
+      }
+
+      // Registration successful
+      setIsSuccess(true);
+      
+      // Redirect to login after short delay
+      setTimeout(() => {
+        router.push('/login');
+      }, 2000);
+      
     } catch (error) {
-      console.error(error)
+      console.error('Registration error:', error);
+      setErrorMessage(error instanceof Error ? error.message : "Terjadi kesalahan saat mendaftarkan akun");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Create an account</h1>
-        <p className="text-sm text-muted-foreground">Enter your details below</p>
+        <h1 className="text-2xl font-bold">Buat Akun</h1>
+        <p className="text-sm text-muted-foreground">Masukkan data diri Anda di bawah ini</p>
       </div>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input placeholder="Name" {...field} disabled={isLoading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="emailOrPhone"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input placeholder="Email or Phone Number" {...field} disabled={isLoading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input type="password" placeholder="Password" {...field} disabled={isLoading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type="submit" className="w-full bg-primary text-white" disabled={isLoading}>
-            Create Account
-          </Button>
-        </form>
-      </Form>
+      
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
+          {errorMessage}
+        </div>
+      )}
+      
+      {isSuccess ? (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative">
+          <p className="font-medium">Registrasi Berhasil!</p>
+          <p>Akun Anda telah dibuat. Anda akan dialihkan ke halaman login dalam beberapa detik.</p>
+        </div>
+      ) : (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input placeholder="Nama" {...field} disabled={isLoading} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="emailOrPhone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input placeholder="Email atau Nomor Telepon" {...field} disabled={isLoading} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input type="password" placeholder="Password" {...field} disabled={isLoading} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit" className="w-full bg-primary text-white" disabled={isLoading}>
+              {isLoading ? "Membuat Akun..." : "Buat Akun"}
+            </Button>
+          </form>
+        </Form>
+      )}
+      
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t"></div>
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+          <span className="bg-background px-2 text-muted-foreground">Atau lanjutkan dengan</span>
         </div>
       </div>
+      
+      {/* Google Signup Button (Commented out as requested) */}
+      {/*
       <Button variant="outline" type="button" disabled={isLoading} className="w-full">
         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
           <path
@@ -134,15 +193,16 @@ export default function SignUpForm() {
             fill="#EA4335"
           />
         </svg>
-        Sign up with Google
+        Daftar dengan Google
       </Button>
+      */}
+      
       <div className="text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
+        Sudah memiliki akun?{" "}
         <Button variant="link" className="text-primary hover:text-primary/80" asChild>
-          <Link href="/login">Log in</Link>
+          <Link href="/login">Masuk</Link>
         </Button>
       </div>
     </div>
   )
 }
-

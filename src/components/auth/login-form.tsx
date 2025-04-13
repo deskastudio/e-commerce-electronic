@@ -1,8 +1,10 @@
+// components/auth/login-form.tsx
 'use client';
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,11 +42,18 @@ export default function LoginForm() {
       if (result?.error) {
         setError(result.error);
       } else {
-        router.push(callbackUrl);
+        // Jika email mengandung admin, arahkan ke dashboard admin
+        if (formData.email.includes('admin')) {
+          router.push('/admin');
+        } else {
+          // Untuk user biasa, arahkan ke callback URL
+          router.push(callbackUrl);
+        }
+        
+        // Refresh halaman untuk memperbarui session
         router.refresh();
       }
     } catch (error) {
-      console.error('Login error:', error);
       setError('Terjadi kesalahan saat login');
     } finally {
       setLoading(false);
@@ -97,10 +106,17 @@ export default function LoginForm() {
             />
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex flex-col space-y-4">
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}
           </Button>
+          
+          <div className="text-center text-sm">
+            Belum memiliki akun?{" "}
+            <Link href="/register" className="text-primary hover:underline">
+              Daftar sekarang
+            </Link>
+          </div>
         </CardFooter>
       </form>
     </Card>

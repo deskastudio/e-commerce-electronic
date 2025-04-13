@@ -1,106 +1,40 @@
-import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IProduct extends Document {
+export interface Product {
+  id: string;
   name: string;
-  slug: string;
   description: string;
   price: number;
   discountPrice?: number;
-  images: string[];
-  category: string;
-  subcategory?: string;
-  tags?: string[];
+  sku?: string;
   stock: number;
-  rating?: number;
-  numReviews?: number;
-  featured: boolean;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  category: string;
+  status: string;
+  images: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
-const ProductSchema: Schema = new Schema({
-  name: { 
-    type: String, 
-    required: true 
-  },
-  slug: { 
-    type: String, 
-    required: true,
-    unique: true,
-    lowercase: true
-  },
-  description: { 
-    type: String, 
-    required: true 
-  },
-  price: { 
-    type: Number, 
-    required: true,
-    min: 0
-  },
-  discountPrice: { 
-    type: Number, 
-    min: 0 
-  },
-  images: [{ 
-    type: String
-  }],
-  category: { 
-    type: String, 
-    required: true 
-  },
-  subcategory: { 
-    type: String 
-  },
-  tags: [{ 
-    type: String 
-  }],
-  stock: { 
-    type: Number, 
-    required: true,
-    min: 0,
-    default: 0
-  },
-  rating: { 
-    type: Number,
-    min: 0,
-    max: 5,
-    default: 0
-  },
-  numReviews: { 
-    type: Number,
-    default: 0
-  },
-  featured: { 
-    type: Boolean, 
-    default: false 
-  },
-  isActive: { 
-    type: Boolean, 
-    default: true 
-  },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
-  },
-  updatedAt: { 
-    type: Date, 
-    default: Date.now 
-  }
-}, {
-  timestamps: true
-});
+// Tipe data untuk form input produk (sesuai dengan SimpleProductForm)
+export interface ProductFormValues {
+  name: string;
+  description: string;
+  price: number;
+  discountPrice?: number;
+  sku?: string;
+  stock: number;
+  category: string;
+  status: string;
+  images: string[];
+}
 
-// Generate slug from name if not provided
-ProductSchema.pre<IProduct>('save', function(next) {
-  if (!this.slug) {
-    this.slug = this.name
-      .toLowerCase()
-      .replace(/[^\w ]+/g, '')
-      .replace(/ +/g, '-');
-  }
-  next();
-});
+// Fungsi bantuan untuk mengkonversi string tag menjadi array (untuk kompatibilitas)
+export function parseTags(tagsString: string): string[] {
+  if (!tagsString) return [];
+  return tagsString.split(",").map(tag => tag.trim()).filter(Boolean);
+}
 
-export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema);
+// Fungsi bantuan untuk mengkonversi array tag menjadi string (untuk kompatibilitas)
+export function formatTags(tags: string[]): string {
+  if (!tags || !tags.length) return "";
+  return tags.join(", ");
+}

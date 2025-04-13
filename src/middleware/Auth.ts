@@ -1,37 +1,38 @@
+// middleware.ts (atau Auth.ts)
 import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { NextRequest } from 'next/server';
+import { NextRequestWithAuth } from 'next-auth/middleware';
 
-export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-  
-  // Definisikan path yang memerlukan autentikasi admin
-  const isAdminPath = path.startsWith('/admin');
-  
-  // Cek apakah path saat ini memerlukan autentikasi
-  if (isAdminPath) {
-    const session = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-    
-    // Redirect ke login jika pengguna tidak terautentikasi
-    if (!session) {
-      const url = new URL('/auth/login', request.url);
-      url.searchParams.set('callbackUrl', encodeURI(request.url));
+export default async function middleware(req: NextRequestWithAuth) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const { pathname } = req.nextUrl;
+
+  // Proteksi route admin
+  if (pathname.startsWith('/admin')) {
+    // Jika tidak login, redirect ke halaman login
+    if (!token) {
+      const url = new URL('/login', req.url);
+      url.searchParams.set('callbackUrl', encodeURI(pathname));
       return NextResponse.redirect(url);
     }
     
-    // Redirect jika pengguna bukan admin
-    if (!session.isAdmin) {
-      return NextResponse.redirect(new URL('/auth/unauthorized', request.url));
+    // Jika bukan admin, redirect ke halaman unauthorized
+    if (!token.isAdmin) {
+      return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
   }
-  
+
+  // Route yang memerlukan autentikasi
+  if (pathname.startsWith('/account') && !token) {
+    const url = new URL('/login', req.url);
+    url.searchParams.set('callbackUrl', encodeURI(pathname));
+    return NextResponse.redirect(url);
+  }
+
   return NextResponse.next();
 }
 
-// Konfigurasi path mana yang akan diproses oleh middleware
+// Konfigurasi path yang perlu proteksi
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/account/:path*']
 };
