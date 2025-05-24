@@ -6,7 +6,7 @@ import { Search, ShoppingCart, Heart, User, Menu, X, ChevronRight } from "lucide
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/database/services/utils"
 
 export default function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -106,18 +106,24 @@ export default function Header() {
               </div>
             )}
           </div>
-          <Button variant="ghost" size="icon">
-            <Heart className="h-5 w-5" />
-            <span className="sr-only">Wishlist</span>
-          </Button>
-          <Button variant="ghost" size="icon">
-            <ShoppingCart className="h-5 w-5" />
-            <span className="sr-only">Cart</span>
-          </Button>
-          <Button variant="ghost" size="icon" className="hidden md:flex">
-            <User className="h-5 w-5" />
-            <span className="sr-only">Account</span>
-          </Button>
+          <Link href="account/wishlist">
+            <Button variant="ghost" size="icon">
+              <Heart className="h-5 w-5" />
+              <span className="sr-only">Wishlist</span>
+            </Button>
+          </Link>
+          <Link href="account/cart">
+            <Button variant="ghost" size="icon">
+              <ShoppingCart className="h-5 w-5" />
+              <span className="sr-only">Cart</span>
+            </Button> 
+          </Link>
+          <Link href="/account">
+            <Button variant="ghost" size="icon" className="hidden md:flex">
+              <User className="h-5 w-5" />
+              <span className="sr-only">Account</span>
+            </Button>
+          </Link>
         </div>
       </div>
     </header>

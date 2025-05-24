@@ -1,7 +1,7 @@
 // app/api/debug/check-admin/route.ts
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import UserModel from '@/models/UserModel';
+import connectDB from '@/lib/database/connection';
+import UserModel from '@/lib/database/models/UserModel';
 
 export async function GET(request: Request) {
   try {

@@ -1,7 +1,7 @@
 // app/api/seed/admin/route.ts
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import { createAdminUser } from '@/lib/user-db';
+import connectDB from '@/lib/database/connection';
+import { createAdminUser } from '@/lib/database/services/user-service';
 
 export async function GET() {
   // Gunakan ini hanya untuk membuat admin pertama

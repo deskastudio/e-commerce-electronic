@@ -1,7 +1,7 @@
+// app/admin/products/[id]/page.tsx - Updated with new structure
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { getProductById } from "@/lib/products-db";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -15,8 +15,12 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import DeleteProductButton from "@/components/admin/delete-product-button";
+import DeleteProductButton from "@/components/admin/products/delete-product-button";
 import { Metadata } from "next";
+
+// Updated imports with new structure
+import { ProductService } from "@/lib/database/services";
+import { Product } from "@/types";
 
 interface ProductDetailPageProps {
   params: {
@@ -25,27 +29,43 @@ interface ProductDetailPageProps {
 }
 
 export async function generateMetadata({ params }: ProductDetailPageProps): Promise<Metadata> {
-  const product = await getProductById(params.id);
-  
-  if (!product) {
+  try {
+    const product = await ProductService.getProductById(params.id);
+    
+    if (!product) {
+      return {
+        title: "Produk Tidak Ditemukan | Admin Panel",
+      };
+    }
+    
     return {
-      title: "Produk Tidak Ditemukan | Admin Panel",
+      title: `${product.name} | Admin Panel`,
+      description: `Detail produk untuk ${product.name}`,
+    };
+  } catch (error) {
+    return {
+      title: "Error | Admin Panel",
     };
   }
-  
-  return {
-    title: `${product.name} | Admin Panel`,
-    description: `Detail produk untuk ${product.name}`,
-  };
 }
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
-  const product = await getProductById(params.id);
-  
-  if (!product) {
+  try {
+    const product = await ProductService.getProductById(params.id);
+    
+    if (!product) {
+      notFound();
+    }
+    
+    return <ProductDetailContent product={product} />;
+  } catch (error) {
+    console.error('Error loading product:', error);
     notFound();
   }
-  
+}
+
+// Separate component to handle the UI
+function ProductDetailContent({ product }: { product: Product }) {
   // Format created date
   const createdDate = new Date(product.createdAt);
   const formattedDate = new Intl.DateTimeFormat('id-ID', {
@@ -152,12 +172,13 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 <div className="col-span-2">
                   <h3 className="font-medium">Tag</h3>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {product.tags.map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="bg-gray-100">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {product.tags.length === 0 && (
+                    {product.tags && product.tags.length > 0 ? (
+                      product.tags.map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="bg-gray-100">
+                          {tag}
+                        </Badge>
+                      ))
+                    ) : (
                       <span className="text-sm text-muted-foreground">Tidak ada tag</span>
                     )}
                   </div>
