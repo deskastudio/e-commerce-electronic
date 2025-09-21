@@ -1,54 +1,171 @@
-import Image from "next/image"
+// components/checkout/order-summary.tsx
+'use client';
 
-const orderItems = [
-  {
-    id: 1,
-    name: "LCD Monitor",
-    image: "/placeholder.svg?height=80&width=80",
-    price: 650,
-  },
-  {
-    id: 2,
-    name: "H1 Gamepad",
-    image: "/placeholder.svg?height=80&width=80",
-    price: 1100,
-  },
-]
+import React from 'react';
+import Image from 'next/image';
+import { useCart } from '@/providers/cart-provider';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { checkoutService } from '@/lib/database/services/checkout-service';
 
 export default function OrderSummary() {
-  const subtotal = orderItems.reduce((sum, item) => sum + item.price, 0)
-  const shipping = 0
-  const total = subtotal + shipping
+  const { cart, isLoading } = useCart();
+
+  // Calculate additional costs
+  const shippingCost = cart.items.length > 0 ? checkoutService.calculateShippingCost({}, cart.items) : 0;
+  const tax = checkoutService.calculateTax(cart.total);
+  const finalTotal = cart.total + shippingCost + tax;
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Order Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (cart.items.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Order Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="py-8 text-center">
+            <p className="text-muted-foreground">Your cart is empty</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-6 rounded-md border p-6">
-      {orderItems.map((item) => (
-        <div key={item.id} className="flex items-center gap-4">
-          <div className="relative h-16 w-16 overflow-hidden rounded-md">
-            <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-          </div>
-          <div className="flex flex-1 justify-between">
-            <span className="font-medium">{item.name}</span>
-            <span>${item.price}</span>
-          </div>
-        </div>
-      ))}
+    <Card>
+      <CardHeader>
+        <CardTitle>Order Summary</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Cart Items */}
+        <div className="space-y-4">
+          {cart.items.map((item) => (
+            <div key={item.id} className="flex items-start gap-3">
+              {/* Product Image */}
+              <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border">
+                <Image
+                  src={item.image || "/placeholder.svg"}
+                  alt={item.name}
+                  fill
+                  className="object-cover"
+                />
+                {/* Quantity Badge */}
+                <Badge 
+                  variant="secondary" 
+                  className="absolute -right-2 -top-2 h-6 w-6 rounded-full p-0 text-xs"
+                >
+                  {item.quantity}
+                </Badge>
+              </div>
 
-      <div className="space-y-2 border-t pt-4">
-        <div className="flex justify-between">
-          <span>Subtotal:</span>
-          <span>${subtotal}</span>
+              {/* Product Details */}
+              <div className="flex flex-1 flex-col gap-1">
+                <div className="flex justify-between">
+                  <h4 className="text-sm font-medium leading-tight">{item.name}</h4>
+                  <span className="text-sm font-medium">
+                    {checkoutService.formatCurrency(item.price * item.quantity)}
+                  </span>
+                </div>
+                
+                {/* Variant Information */}
+                {item.variant && (
+                  <div className="flex gap-2 text-xs text-muted-foreground">
+                    {item.variant.color && (
+                      <span>Color: {item.variant.color}</span>
+                    )}
+                    {item.variant.size && (
+                      <span>Size: {item.variant.size}</span>
+                    )}
+                  </div>
+                )}
+                
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Qty: {item.quantity}</span>
+                  <span>{checkoutService.formatCurrency(item.price)} each</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="flex justify-between">
-          <span>Shipping:</span>
-          <span>{shipping === 0 ? "Free" : `$${shipping}`}</span>
+
+        <Separator />
+
+        {/* Cost Breakdown */}
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Subtotal ({cart.itemCount} items):</span>
+            <span>{checkoutService.formatCurrency(cart.total)}</span>
+          </div>
+          
+          <div className="flex justify-between text-sm">
+            <span>Shipping:</span>
+            <span>
+              {shippingCost === 0 
+                ? "Free" 
+                : checkoutService.formatCurrency(shippingCost)
+              }
+            </span>
+          </div>
+          
+          <div className="flex justify-between text-sm">
+            <span>Tax (11% PPN):</span>
+            <span>{checkoutService.formatCurrency(tax)}</span>
+          </div>
         </div>
-        <div className="flex justify-between border-t pt-2 font-bold">
+
+        <Separator />
+
+        {/* Total */}
+        <div className="flex justify-between text-base font-bold">
           <span>Total:</span>
-          <span>${total}</span>
+          <span>{checkoutService.formatCurrency(finalTotal)}</span>
         </div>
-      </div>
-    </div>
-  )
-}
 
+        {/* Payment Method Info */}
+        <div className="rounded-lg bg-muted p-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <span>💳</span>
+            <span>Bank Transfer</span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Payment will be processed after order confirmation
+          </p>
+        </div>
+
+        {/* Shipping Note */}
+        <div className="rounded-lg bg-blue-50 p-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
+            <span>🚚</span>
+            <span>Shipping Information</span>
+          </div>
+          <p className="mt-1 text-xs text-blue-700">
+            Orders are typically processed within 1-2 business days. 
+            Shipping time varies by location (3-7 business days).
+          </p>
+        </div>
+
+        {/* Security Note */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>🔒</span>
+          <span>Your order information is secure and encrypted</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

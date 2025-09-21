@@ -6,9 +6,9 @@ import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
-import TopBar from "@/components/home/top-bar";
-import Header from "@/components/common/header";
-import Footer from "@/components/common/footer";
+import TopBar from "@/components/layout/top-bar";
+import Header from "@/components/layout/header";
+import Footer from "@/components/layout/footer";
 
 export default function ErrorPage() {
   const searchParams = useSearchParams();

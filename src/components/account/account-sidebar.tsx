@@ -16,21 +16,16 @@ const AccountSidebar = () => {
       title: "Manage My Account",
       items: [
         { name: "My Profile", href: "/account/profile" },
-        { name: "Address Book", href: "/account/address" },
-        { name: "My Payment Options", href: "/account/payment" },
+        { name: "My Address", href: "/account/address" },
       ],
     },
     {
       title: "My Orders",
       items: [
-        { name: "Order History", href: "/account/orders" },
+        { name: "My History Orders", href: "/account/orders" },
         { name: "My Returns", href: "/account/returns" },
         { name: "My Cancellations", href: "/account/cancellations" },
       ],
-    },
-    {
-      title: "My Wishlist",
-      items: [{ name: "My Wishlist", href: "/account/wishlist" }],
     },
   ]
 

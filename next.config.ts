@@ -1,18 +1,20 @@
+// next.config.ts - Simplified untuk Fix Images
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    domains: ['localhost'],
+    // Disable optimization sementara untuk debugging
+    unoptimized: true,
+    
+    // Allow semua domains
     remotePatterns: [
       {
         protocol: 'http',
-        hostname: 'localhost',
-        port: '3000',
-        pathname: '/uploads/**',
+        hostname: '**',
       },
       {
         protocol: 'https',
-        hostname: '**', // Untuk mendukung hosting yang berbeda
+        hostname: '**',
       }
     ],
   },

@@ -1,7 +1,7 @@
 import Image from "next/image"
-import TopBar from "@/components/home/top-bar"
-import Header from "@/components/common/header"
-import Footer from "@/components/common/footer"
+import TopBar from "@/components/layout/top-bar"
+import Header from "@/components/layout/header"
+import Footer from "@/components/layout/footer"
 import LoginForm from "@/components/auth/login-form"
 
 export default function LoginPage() {

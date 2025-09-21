@@ -1,21 +1,32 @@
 // lib/database/services/index.ts
-
-// Export all services
-export { ProductService } from './product-service';
 export { CategoryService } from './category-service';
 export { UploadService } from './upload-service';
 export { ValidationService } from './validation-service';
 
-// Export upload types
-export type { UploadConfig, UploadResult } from './upload-service';
+// Product service placeholder for future use
+export class ProductService {
+  static async getProductStats() {
+    // Placeholder implementation
+    return {
+      total: 0,
+      active: 0,
+      inactive: 0,
+      draft: 0
+    };
+  }
 
-// Re-export common types for convenience
+  static async getProductsByCategory(categoryId: string) {
+    // Placeholder implementation
+    return [];
+  }
+}
+
+// Re-export types
 export type {
-  Product,
-  ProductFormValues,
-  ProductSearchParams,
-  ProductsPaginatedResponse,
-  Category,
-  CategoryFormValues,
-  CategorySelectOption
+  ValidationError,
+  ApiResponse,
+  UploadResponse,
+  FileValidationOptions,
+  CategoryStats,
+  ProductStats
 } from '@/types';

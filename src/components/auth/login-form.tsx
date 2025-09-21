@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -21,10 +23,13 @@ export default function LoginForm() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
   
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -42,15 +47,15 @@ export default function LoginForm() {
       if (result?.error) {
         setError(result.error);
       } else {
-        // Jika email mengandung admin, arahkan ke dashboard admin
+        // Check if user is admin based on email
         if (formData.email.includes('admin')) {
           router.push('/admin');
         } else {
-          // Untuk user biasa, arahkan ke callback URL
+          // For regular users, redirect to callback URL
           router.push(callbackUrl);
         }
         
-        // Refresh halaman untuk memperbarui session
+        // Refresh to update session
         router.refresh();
       }
     } catch (error) {
@@ -62,58 +67,101 @@ export default function LoginForm() {
   
   return (
     <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="text-2xl">Login</CardTitle>
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-2xl font-bold">Masuk ke akun Anda</CardTitle>
         <CardDescription>
-          Masukkan kredensial Anda untuk masuk ke akun
+          Masukkan email dan password untuk mengakses akun
         </CardDescription>
       </CardHeader>
+      
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
           
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email atau Nomor Telepon</Label>
             <Input
               id="email"
               name="email"
-              type="email"
-              placeholder="nama@example.com"
+              type="text"
+              placeholder="nama@example.com atau 08123456789"
               required
               value={formData.email}
               onChange={handleChange}
+              disabled={loading}
+              className="h-11"
             />
           </div>
           
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <a href="#" className="text-sm text-primary hover:underline">
+              <Link 
+                href="/auth/forgot-password" 
+                className="text-sm text-primary hover:underline"
+              >
                 Lupa password?
-              </a>
+              </Link>
             </div>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                required
+                value={formData.password}
+                onChange={handleChange}
+                disabled={loading}
+                className="h-11 pr-10"
+                placeholder="Masukkan password"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-11 w-10"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+                <span className="sr-only">
+                  {showPassword ? "Sembunyikan" : "Tampilkan"} password
+                </span>
+              </Button>
+            </div>
           </div>
         </CardContent>
+        
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+          <Button 
+            type="submit" 
+            className="w-full h-11" 
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              'Sign In'
+            )}
           </Button>
           
-          <div className="text-center text-sm">
+          <div className="text-center text-sm text-muted-foreground">
             Belum memiliki akun?{" "}
-            <Link href="/register" className="text-primary hover:underline">
+            <Link 
+              href="/auth/signup" 
+              className="text-primary hover:underline font-medium"
+            >
               Daftar sekarang
             </Link>
           </div>

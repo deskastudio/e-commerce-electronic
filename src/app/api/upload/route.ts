@@ -1,69 +1,128 @@
-// app/api/upload/route.ts - FIXED Upload API Route
+// app/api/upload/route.ts - CONSISTENT UPLOAD API
 import { NextRequest, NextResponse } from 'next/server';
-import { ValidationService } from '@/lib/database/services';
-import { ApiResponse } from '@/types';
-import { writeFile, mkdir, unlink, access, stat, readdir } from 'fs/promises';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { existsSync } from 'fs';
 
-/**
- * POST /api/upload - Upload files (Server-side only)
- */
+interface ApiResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+  message?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔄 Upload API - Starting...');
+    
     const formData = await request.formData();
-    const files = formData.getAll('files') as File[];
-    const uploadType = formData.get('type') as string || 'general';
+    const file = formData.get('file') as File;
+    const folder = formData.get('folder') as string || 'products'; // Default products
+    const type = formData.get('type') as string || 'product';
 
-    if (!files.length) {
+    console.log('📥 Upload request:', { 
+      fileName: file?.name, 
+      fileSize: file?.size, 
+      folder, 
+      type 
+    });
+
+    if (!file) {
       const response: ApiResponse = {
         success: false,
-        error: 'No files provided'
+        error: 'File tidak ditemukan'
       };
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Validate files based on upload type
-    let validationConfig = {};
-    if (uploadType === 'products') {
-      validationConfig = {
-        maxFiles: 5,
-        maxSize: 5 * 1024 * 1024, // 5MB
-        maxTotalSize: 25 * 1024 * 1024 // 25MB total
-      };
-    } else if (uploadType === 'categories') {
-      validationConfig = {
-        maxFiles: 1,
-        maxSize: 2 * 1024 * 1024 // 2MB
-      };
-    }
-
-    const validationErrors = ValidationService.validateMultipleFileUpload(files, validationConfig);
-    if (!ValidationService.isValid(validationErrors)) {
+    // Validate file size
+    const maxSize = folder === 'categories' ? 2 * 1024 * 1024 : 5 * 1024 * 1024; // 2MB/5MB
+    if (file.size > maxSize) {
       const response: ApiResponse = {
         success: false,
-        error: 'File validation failed',
-        errors: validationErrors
+        error: `File terlalu besar. Maksimal ${Math.round(maxSize / 1024 / 1024)}MB`
       };
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Upload files
-    const uploadResults = await uploadFiles(files, uploadType);
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Tipe file tidak didukung. Hanya boleh JPG, PNG, GIF, atau WebP'
+      };
+      return NextResponse.json(response, { status: 400 });
+    }
+
+    console.log('✅ File validation passed');
+
+    // Generate filename - KONSISTEN dengan naming convention
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 15);
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const originalName = file.name.split('.').slice(0, -1).join('.');
+    const sanitizedName = originalName
+      .replace(/[^a-zA-Z0-9-_]/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 20);
+
+    // Naming convention: type-sanitizedName-timestamp-random.ext
+    const filename = `${folder.slice(0, -1)}-${sanitizedName}-${timestamp}-${randomString}.${extension}`;
+    
+    console.log('📝 Generated filename:', filename);
+
+    // Create upload directory - PHYSICAL PATH
+    const uploadDir = join(process.cwd(), 'public', 'uploads', folder);
+    
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true });
+      console.log('📁 Created directory:', uploadDir);
+    }
+
+    // Save file
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const filePath = join(uploadDir, filename);
+    
+    await writeFile(filePath, buffer);
+    console.log('💾 File saved to:', filePath);
+
+    // IMPORTANT: Generate correct URL for Next.js static serving
+    // File location: public/uploads/products/filename.png
+    // Next.js URL: /uploads/products/filename.png
+    const publicUrl = `/uploads/${folder}/${filename}`;
+
+    console.log('🔗 Public URL:', publicUrl);
+
+    // Test file accessibility immediately
+    const testPath = join(process.cwd(), 'public', publicUrl.substring(1)); // Remove leading /
+    const fileExists = existsSync(testPath);
+    console.log('🧪 File accessibility test:', fileExists ? 'PASS' : 'FAIL');
 
     const response: ApiResponse = {
       success: true,
-      data: uploadResults,
-      message: `Successfully uploaded ${files.length} file(s)`
+      data: {
+        url: publicUrl,
+        filename: filename,
+        originalName: file.name,
+        size: file.size,
+        type: file.type,
+        folder: folder,
+        fullPath: filePath,
+        accessible: fileExists
+      },
+      message: 'File berhasil diunggah'
     };
 
     return NextResponse.json(response);
+
   } catch (error) {
-    console.error('POST /api/upload error:', error);
+    console.error('❌ Upload error:', error);
     
     const response: ApiResponse = {
       success: false,
-      error: 'Failed to upload files',
+      error: 'Gagal mengunggah file',
       message: (error as Error).message
     };
 
@@ -71,229 +130,63 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * DELETE /api/upload - Delete files
- */
+// DELETE method for file deletion
 export async function DELETE(request: NextRequest) {
   try {
-    const { filePaths } = await request.json();
+    console.log('🔄 Delete API - Starting...');
+    
+    const { url } = await request.json();
 
-    if (!filePaths || !Array.isArray(filePaths)) {
+    if (!url) {
       const response: ApiResponse = {
         success: false,
-        error: 'File paths array is required'
+        error: 'URL file tidak ditemukan'
       };
       return NextResponse.json(response, { status: 400 });
     }
 
-    const result = await deleteFiles(filePaths);
+    console.log('🗑️ Delete request for:', url);
+
+    // Convert URL to file path
+    // URL: /uploads/products/filename.png
+    // Path: public/uploads/products/filename.png
+    const relativePath = url.startsWith('/') ? url.substring(1) : url;
+    const filePath = join(process.cwd(), 'public', relativePath);
+
+    console.log('📁 Deleting file:', filePath);
+
+    // Check if file exists
+    if (!existsSync(filePath)) {
+      console.log('⚠️ File not found for deletion');
+      const response: ApiResponse = {
+        success: false,
+        error: 'File tidak ditemukan'
+      };
+      return NextResponse.json(response, { status: 404 });
+    }
+
+    // Delete file
+    const fs = require('fs').promises;
+    await fs.unlink(filePath);
+
+    console.log('✅ File deleted successfully');
 
     const response: ApiResponse = {
       success: true,
-      data: result,
-      message: `Deleted ${result.deleted.length} file(s), failed to delete ${result.failed.length} file(s)`
+      message: 'File berhasil dihapus'
     };
 
     return NextResponse.json(response);
+
   } catch (error) {
-    console.error('DELETE /api/upload error:', error);
+    console.error('❌ Delete error:', error);
     
     const response: ApiResponse = {
       success: false,
-      error: 'Failed to delete files',
+      error: 'Gagal menghapus file',
       message: (error as Error).message
     };
 
     return NextResponse.json(response, { status: 500 });
   }
-}
-
-/**
- * GET /api/upload/info - Get file info
- */
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const filePath = searchParams.get('path');
-
-    if (!filePath) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'File path is required'
-      };
-      return NextResponse.json(response, { status: 400 });
-    }
-
-    const fileInfo = await getFileInfo(filePath);
-
-    const response: ApiResponse = {
-      success: true,
-      data: fileInfo
-    };
-
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('GET /api/upload/info error:', error);
-    
-    const response: ApiResponse = {
-      success: false,
-      error: 'Failed to get file info',
-      message: (error as Error).message
-    };
-
-    return NextResponse.json(response, { status: 500 });
-  }
-}
-
-// Server-side file operations (Node.js only)
-
-/**
- * Upload multiple files to server
- */
-async function uploadFiles(files: File[], subDir: string = 'general'): Promise<string[]> {
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', subDir);
-  await ensureDirectoryExists(uploadDir);
-
-  const uploadPromises = files.map(async (file) => {
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const ext = getFileExtension(file.name);
-    const filename = `${subDir}-${uuidv4()}${ext}`;
-    const fullPath = path.join(uploadDir, filename);
-
-    await writeFile(fullPath, buffer);
-
-    return `/uploads/${subDir}/${filename}`;
-  });
-
-  return await Promise.all(uploadPromises);
-}
-
-/**
- * Delete multiple files from server
- */
-async function deleteFiles(filePaths: string[]): Promise<{ deleted: string[]; failed: string[] }> {
-  const deleted: string[] = [];
-  const failed: string[] = [];
-
-  for (const filePath of filePaths) {
-    try {
-      // Ensure the file is within our upload directory
-      const fullPath = path.join(process.cwd(), 'public', filePath);
-      const uploadDir = path.join(process.cwd(), 'public/uploads');
-      
-      if (!fullPath.startsWith(uploadDir)) {
-        failed.push(filePath);
-        continue;
-      }
-
-      // Check if file exists
-      await access(fullPath);
-      
-      // Delete file
-      await unlink(fullPath);
-      deleted.push(filePath);
-    } catch (error) {
-      console.error(`Error deleting file ${filePath}:`, error);
-      failed.push(filePath);
-    }
-  }
-
-  return { deleted, failed };
-}
-
-/**
- * Get file information
- */
-async function getFileInfo(filePath: string): Promise<{
-  exists: boolean;
-  size?: number;
-  mimetype?: string;
-}> {
-  try {
-    const fullPath = path.join(process.cwd(), 'public', filePath);
-    const stats = await stat(fullPath);
-    const ext = getFileExtension(filePath);
-    const mimetype = getMimetypeFromExtension(ext);
-
-    return {
-      exists: true,
-      size: stats.size,
-      mimetype
-    };
-  } catch (error) {
-    return { exists: false };
-  }
-}
-
-/**
- * Get upload statistics
- */
-export async function getUploadStats(subDir: string = 'products'): Promise<{
-  totalFiles: number;
-  totalSizeBytes: number;
-  totalSizeMB: number;
-}> {
-  try {
-    const uploadPath = path.join(process.cwd(), 'public/uploads', subDir);
-    
-    const files = await readdir(uploadPath);
-    let totalSizeBytes = 0;
-
-    for (const file of files) {
-      const filePath = path.join(uploadPath, file);
-      const stats = await stat(filePath);
-      totalSizeBytes += stats.size;
-    }
-
-    return {
-      totalFiles: files.length,
-      totalSizeBytes,
-      totalSizeMB: Math.round((totalSizeBytes / (1024 * 1024)) * 100) / 100
-    };
-  } catch (error) {
-    console.error("Error getting upload stats:", error);
-    return {
-      totalFiles: 0,
-      totalSizeBytes: 0,
-      totalSizeMB: 0
-    };
-  }
-}
-
-// Utility functions
-
-/**
- * Ensure directory exists
- */
-async function ensureDirectoryExists(dirPath: string): Promise<void> {
-  try {
-    await mkdir(dirPath, { recursive: true });
-  } catch (error) {
-    throw new Error(`Failed to create upload directory: ${(error as Error).message}`);
-  }
-}
-
-/**
- * Get file extension
- */
-function getFileExtension(filename: string): string {
-  return path.extname(filename).toLowerCase();
-}
-
-/**
- * Get mimetype from extension
- */
-function getMimetypeFromExtension(ext: string): string {
-  const mimetypes: Record<string, string> = {
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp',
-    '.svg': 'image/svg+xml'
-  };
-
-  return mimetypes[ext] || 'application/octet-stream';
 }

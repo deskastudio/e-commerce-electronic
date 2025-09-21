@@ -1,69 +1,32 @@
-import Image from "next/image"
-import { Heart, ChevronLeft, ChevronRight } from "lucide-react"
+// src/components/best-selling.tsx - Updated untuk menggunakan data real
+import Link from "next/link"
+import { Heart, ChevronLeft, ChevronRight, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import ProductImage from "@/components/admin/products/product-image"
+import { getFirstValidImage } from "@/lib/utils/image-helpers"
+import { Product } from "@/types/product"
 
-interface Product {
-  id: number
-  name: string
-  category: string
-  image: string
-  price: number
-  originalPrice: number
-  rating: number
-  reviews: number
+interface BestSellingProps {
+  products?: Product[];
 }
 
-const bestSellingProducts: Product[] = [
-  {
-    id: 1,
-    name: "The north coat",
-    category: "Coat",
-    image: "/placeholder.svg?height=200&width=200",
-    price: 260,
-    originalPrice: 360,
-    rating: 5,
-    reviews: 65,
-  },
-  {
-    id: 2,
-    name: "Gucci duffle bag",
-    category: "Bag",
-    image: "/placeholder.svg?height=200&width=200",
-    price: 960,
-    originalPrice: 1160,
-    rating: 4.5,
-    reviews: 65,
-  },
-  {
-    id: 3,
-    name: "RGB liquid CPU Cooler",
-    category: "Electronics",
-    image: "/placeholder.svg?height=200&width=200",
-    price: 160,
-    originalPrice: 170,
-    rating: 4.5,
-    reviews: 65,
-  },
-  {
-    id: 4,
-    name: "Small BookShelf",
-    category: "Furniture",
-    image: "/placeholder.svg?height=200&width=200",
-    price: 360,
-    originalPrice: 400,
-    rating: 5,
-    reviews: 65,
-  },
-]
+export default function BestSelling({ products = [] }: BestSellingProps) {
+  // Format price to Rupiah
+  const formatRupiah = (amount: number): string => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
 
-export default function BestSelling() {
   return (
     <section className="mb-16">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="h-10 w-1 bg-primary" />
-          <h2 className="text-xl font-semibold">This Month</h2>
+          <div className="h-10 w-1 bg-red-500" />
+          <h2 className="text-xl font-semibold text-red-500">This Month</h2>
         </div>
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="rounded-full">
@@ -77,54 +40,81 @@ export default function BestSelling() {
 
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <h2 className="text-2xl font-bold">Best Selling Products</h2>
-        <Button variant="outline">View All</Button>
+        <Button variant="outline" asChild>
+          <Link href="/products">View All</Link>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {bestSellingProducts.map((product) => (
-          <Card key={product.id} className="overflow-hidden border-none shadow-none">
-            <div className="relative bg-gray-100 p-4">
-              <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-8 w-8 rounded-full bg-white">
-                <Heart className="h-4 w-4" />
-              </Button>
-              <div className="flex h-[200px] items-center justify-center">
-                <Image
-                  src={product.image || "/placeholder.svg"}
-                  alt={product.name}
-                  width={150}
-                  height={150}
-                  className="h-auto max-h-[150px] w-auto object-contain"
-                />
+        {products.slice(0, 4).map((product) => {
+          const firstImage = getFirstValidImage(product.images);
+          
+          return (
+            <Card key={product.id} className="group overflow-hidden border-none shadow-none">
+              <div className="relative bg-gray-100 p-4">
+                <div className="absolute right-4 top-4 z-10 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-white">
+                    <Heart className="h-4 w-4" />
+                  </Button>
+                  <Link href={`/product/${product.id}`}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-white">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+                
+                <Link href={`/product/${product.id}`}>
+                  <div className="flex h-[200px] items-center justify-center">
+                    <ProductImage
+                      src={firstImage}
+                      alt={product.name}
+                      width={150}
+                      height={150}
+                      className="h-auto max-h-[150px] w-auto object-contain hover:scale-105 transition-transform"
+                      fallbackText={product.name ? product.name.charAt(0) : 'P'}
+                    />
+                  </div>
+                </Link>
               </div>
-            </div>
-            <CardContent className="p-4">
-              <h3 className="font-medium">{product.name}</h3>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="font-semibold text-primary">${product.price}</span>
-                <span className="text-sm text-muted-foreground line-through">${product.originalPrice}</span>
-              </div>
-              <div className="mt-2 flex items-center">
-                <div className="flex">
-                  {Array(5)
-                    .fill(0)
-                    .map((_, i) => (
+              
+              <CardContent className="p-4">
+                <Link href={`/product/${product.id}`}>
+                  <h3 className="font-medium hover:text-red-500 transition-colors line-clamp-2 mb-2">
+                    {product.name}
+                  </h3>
+                </Link>
+                
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="font-semibold text-red-500">
+                    {formatRupiah(product.price)}
+                  </span>
+                </div>
+                
+                <div className="mt-2 flex items-center">
+                  <div className="flex">
+                    {Array(5).fill(0).map((_, i) => (
                       <svg
                         key={i}
-                        className={`h-4 w-4 ${i < Math.floor(product.rating) ? "fill-yellow-400" : "fill-gray-300"}`}
+                        className={`h-4 w-4 ${i < 5 ? "fill-yellow-400" : "fill-gray-300"}`}
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                       >
                         <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                       </svg>
                     ))}
+                  </div>
+                  <span className="ml-2 text-xs text-muted-foreground">(65)</span>
                 </div>
-                <span className="ml-2 text-xs text-muted-foreground">({product.reviews})</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                
+                <div className="mt-2 text-xs text-gray-600">
+                  <span className="font-medium">{product.brand}</span>
+                  {product.model && <span className="ml-1">{product.model}</span>}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </section>
   )
 }
-

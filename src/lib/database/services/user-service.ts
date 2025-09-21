@@ -1,29 +1,18 @@
-// lib/user-db.ts
+// lib/database/services/user-service.ts
 'use server';
 
 import connectDB from "@/lib/database/connection";
-import UserModel from "@/lib/database/models/UserModel";
-import { User, UserFormValues, isEmail } from "@/lib/database/models/User";
+import UserModel, { 
+  User, 
+  UserFormValues, 
+  isEmail, 
+  convertDocumentToUser 
+} from "@/lib/database/models/User";
 
 // Connect to database
 async function dbConnect() {
   await connectDB();
   console.log("Connected to MongoDB database");
-}
-
-// Convert Mongoose document to User object
-function convertDocumentToUser(doc: any): User {
-  return {
-    id: doc._id.toString(),
-    name: doc.name,
-    email: doc.email || undefined,
-    phone: doc.phone || undefined,
-    password: doc.password, // Note: password is hashed
-    role: doc.role,
-    createdAt: doc.createdAt.toISOString(),
-    updatedAt: doc.updatedAt.toISOString(),
-    comparePassword: doc.comparePassword.bind(doc),
-  };
 }
 
 // Get all users

@@ -4,9 +4,9 @@ import { useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import TopBar from "@/components/home/top-bar";
-import Header from "@/components/common/header";
-import Footer from "@/components/common/footer";
+import TopBar from "@/components/layout/top-bar";
+import Header from "@/components/layout/header";
+import Footer from "@/components/layout/footer";
 
 export default function LogoutPage() {
   useEffect(() => {

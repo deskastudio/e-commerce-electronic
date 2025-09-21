@@ -1,7 +1,6 @@
-// app/admin/products/[id]/page.tsx - Updated with new structure
+// app/admin/products/[id]/page.tsx - Minimal Product Detail Page
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -9,18 +8,17 @@ import {
   Edit, 
   Calendar, 
   Package, 
-  Tag, 
   ShoppingCart,
-  DollarSign 
+  DollarSign,
+  Box
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import DeleteProductButton from "@/components/admin/products/delete-product-button";
+import ProductImage from "@/components/admin/products/product-image";
 import { Metadata } from "next";
-
-// Updated imports with new structure
-import { ProductService } from "@/lib/database/services";
-import { Product } from "@/types";
+import { ProductService } from "@/lib/database/services/product-service";
+import { Product } from '@/types/product';
 
 interface ProductDetailPageProps {
   params: {
@@ -39,8 +37,8 @@ export async function generateMetadata({ params }: ProductDetailPageProps): Prom
     }
     
     return {
-      title: `${product.name} | Admin Panel`,
-      description: `Detail produk untuk ${product.name}`,
+      title: `${product.brand} ${product.model} - ${product.name} | Admin Panel`,
+      description: `Detail produk ${product.brand} ${product.model} - SKU: ${product.sku}`,
     };
   } catch (error) {
     return {
@@ -51,18 +49,34 @@ export async function generateMetadata({ params }: ProductDetailPageProps): Prom
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   try {
+    console.log('🔄 Loading product detail for ID:', params.id);
+    
     const product = await ProductService.getProductById(params.id);
     
     if (!product) {
+      console.log('❌ Product not found:', params.id);
       notFound();
     }
+
+    console.log('✅ Product loaded:', product.name, '- SKU:', product.sku);
     
     return <ProductDetailContent product={product} />;
   } catch (error) {
-    console.error('Error loading product:', error);
+    console.error('❌ Error loading product detail:', error);
     notFound();
   }
 }
+
+// Get condition text and color
+const getConditionInfo = (condition: string) => {
+  const conditionMap: Record<string, { text: string; class: string }> = {
+    'new': { text: 'Baru', class: 'bg-green-100 text-green-800' },
+    'refurbished': { text: 'Refurbished', class: 'bg-blue-100 text-blue-800' },
+    'used-like-new': { text: 'Bekas Seperti Baru', class: 'bg-orange-100 text-orange-800' },
+    'used-good': { text: 'Bekas Kondisi Baik', class: 'bg-yellow-100 text-yellow-800' }
+  };
+  return conditionMap[condition] || { text: condition, class: 'bg-gray-100 text-gray-800' };
+};
 
 // Separate component to handle the UI
 function ProductDetailContent({ product }: { product: Product }) {
@@ -75,6 +89,15 @@ function ProductDetailContent({ product }: { product: Product }) {
     hour: '2-digit',
     minute: '2-digit'
   }).format(createdDate);
+  
+  // Format currency to Indonesian Rupiah
+  const formatRupiah = (amount: number): string => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
   
   // Get status text and badge color
   const getStatusText = () => {
@@ -102,6 +125,8 @@ function ProductDetailContent({ product }: { product: Product }) {
         return "";
     }
   };
+
+  const conditionInfo = getConditionInfo(product.condition);
   
   return (
     <div className="space-y-6">
@@ -114,13 +139,13 @@ function ProductDetailContent({ product }: { product: Product }) {
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{product.name}</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <h1 className="text-2xl md:text-3xl font-bold">{product.brand} {product.model}</h1>
+            <p className="text-lg text-muted-foreground mb-2">{product.name}</p>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1">
                 <Package className="h-4 w-4" />
-                SKU: {product.sku || "-"}
+                SKU: {product.sku}
               </span>
-              <span>•</span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
                 Dibuat: {formattedDate}
@@ -136,21 +161,25 @@ function ProductDetailContent({ product }: { product: Product }) {
               Edit Produk
             </Link>
           </Button>
-          <DeleteProductButton id={product.id} name={product.name} />
+          <DeleteProductButton id={product.id} name={`${product.brand} ${product.model}`} />
         </div>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 space-y-6">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Basic Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Informasi Produk</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Box className="h-5 w-5" />
+                Informasi Produk
+              </CardTitle>
               <CardDescription>Detail lengkap produk</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <h3 className="font-medium">Status</h3>
+                  <h3 className="font-medium text-sm text-muted-foreground">Status</h3>
                   <Badge
                     variant="outline"
                     className={getStatusBadgeClass()}
@@ -160,95 +189,53 @@ function ProductDetailContent({ product }: { product: Product }) {
                 </div>
                 
                 <div>
-                  <h3 className="font-medium">Kategori</h3>
-                  <p className="text-sm capitalize">{product.category}</p>
+                  <h3 className="font-medium text-sm text-muted-foreground">Kondisi</h3>
+                  <Badge
+                    variant="outline"
+                    className={conditionInfo.class}
+                  >
+                    {conditionInfo.text}
+                  </Badge>
                 </div>
                 
-                <div className="col-span-2">
-                  <h3 className="font-medium">Deskripsi</h3>
-                  <p className="text-sm text-muted-foreground">{product.description}</p>
+                <div>
+                  <h3 className="font-medium text-sm text-muted-foreground">Kategori</h3>
+                  <p className="font-medium capitalize">{product.category.replace('-', ' ')}</p>
                 </div>
-                
-                <div className="col-span-2">
-                  <h3 className="font-medium">Tag</h3>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {product.tags && product.tags.length > 0 ? (
-                      product.tags.map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="bg-gray-100">
-                          {tag}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-sm text-muted-foreground">Tidak ada tag</span>
-                    )}
-                  </div>
+
+                <div>
+                  <h3 className="font-medium text-sm text-muted-foreground">Garansi</h3>
+                  <p className="font-medium">{product.warranty || 'Tidak ada'}</p>
                 </div>
               </div>
               
+              <div>
+                <h3 className="font-medium text-sm text-muted-foreground mb-2">Deskripsi</h3>
+                <p className="text-sm leading-relaxed">{product.description}</p>
+              </div>
+
+              {/* Price and Stock Information */}
               <Separator />
               
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="font-medium">Harga</h3>
-                  <p className="text-sm">Rp {product.price.toLocaleString('id-ID')}</p>
+                  <h3 className="font-medium text-sm text-muted-foreground mb-2">Harga Jual</h3>
+                  <p className="text-2xl font-bold text-primary">{formatRupiah(product.price)}</p>
                 </div>
                 
-                {product.discountPrice && (
-                  <div>
-                    <h3 className="font-medium">Harga Diskon</h3>
-                    <p className="text-sm">Rp {product.discountPrice.toLocaleString('id-ID')}</p>
-                  </div>
-                )}
-                
-                {product.cost && (
-                  <div>
-                    <h3 className="font-medium">Biaya per Item</h3>
-                    <p className="text-sm">Rp {product.cost.toLocaleString('id-ID')}</p>
-                  </div>
-                )}
-              </div>
-              
-              <Separator />
-              
-              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <h3 className="font-medium">Stok</h3>
+                  <h3 className="font-medium text-sm text-muted-foreground mb-2">Stok Tersedia</h3>
                   <div className="flex items-center gap-2">
-                    <span className={`inline-block h-2 w-2 rounded-full ${
+                    <span className={`inline-block h-3 w-3 rounded-full ${
                       product.stock > 10 ? "bg-green-500" : 
                       product.stock > 0 ? "bg-yellow-500" : "bg-red-500"
                     }`}></span>
-                    <p className="text-sm">{product.stock}</p>
+                    <p className="text-xl font-bold">{product.stock} unit</p>
                   </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium">SKU</h3>
-                  <p className="text-sm">{product.sku || "-"}</p>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium">Barcode</h3>
-                  <p className="text-sm">{product.barcode || "-"}</p>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <h3 className="font-medium">Produk Fisik</h3>
-                  <p className="text-sm">{product.isPhysical ? "Ya" : "Tidak"}</p>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium">Kena Pajak</h3>
-                  <p className="text-sm">{product.isTaxable ? "Ya" : "Tidak"}</p>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium">Perlu Pengiriman</h3>
-                  <p className="text-sm">{product.isShippingRequired ? "Ya" : "Tidak"}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {product.stock > 10 ? 'Stok aman' : 
+                     product.stock > 0 ? 'Stok terbatas' : 'Stok habis'}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -256,33 +243,44 @@ function ProductDetailContent({ product }: { product: Product }) {
         </div>
         
         <div className="space-y-6">
+          {/* Product Images */}
           <Card>
             <CardHeader>
               <CardTitle>Gambar Produk</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {product.images.length === 0 ? (
-                  <div className="flex h-40 items-center justify-center rounded border border-dashed">
-                    <p className="text-sm text-muted-foreground">Tidak ada gambar produk</p>
+                {!product.images || product.images.length === 0 || 
+                 (product.images.length === 1 && product.images[0] === "/placeholder.svg") ? (
+                  <div className="flex h-40 items-center justify-center rounded border border-dashed bg-gray-50">
+                    <div className="text-center">
+                      <Package className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                      <p className="text-sm text-muted-foreground">Tidak ada gambar produk</p>
+                    </div>
                   </div>
                 ) : (
-                  product.images.map((image, index) => (
-                    <div key={index} className="overflow-hidden rounded-md border">
-                      <Image
-                        src={image}
-                        alt={`${product.name} - Gambar ${index + 1}`}
-                        width={300}
-                        height={300}
-                        className="h-auto w-full object-cover"
-                      />
-                    </div>
-                  ))
+                  product.images
+                    .filter(image => image && image !== "/placeholder.svg")
+                    .map((image, index) => (
+                      <div key={index} className="overflow-hidden rounded-md border">
+                        <div className="relative hover:scale-105 transition-transform">
+                          <ProductImage
+                            src={image}
+                            alt={`${product.brand} ${product.model} - Gambar ${index + 1}`}
+                            width={300}
+                            height={300}
+                            className="h-auto w-full object-cover"
+                            fallbackText={product.name}
+                          />
+                        </div>
+                      </div>
+                    ))
                 )}
               </div>
             </CardContent>
           </Card>
           
+          {/* Statistics */}
           <Card>
             <CardHeader>
               <CardTitle>Statistik Produk</CardTitle>
@@ -290,27 +288,66 @@ function ProductDetailContent({ product }: { product: Product }) {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Total Terjual</span>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Stok Tersedia</span>
                 </div>
-                <span className="font-medium">0</span>
+                <span className="font-medium">{product.stock}</span>
               </div>
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Pendapatan</span>
+                  <span className="text-sm">Harga Jual</span>
                 </div>
-                <span className="font-medium">Rp 0</span>
+                <span className="font-medium">
+                  {formatRupiah(product.price)}
+                </span>
               </div>
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Tag className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Margin Profit</span>
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Total Terjual</span>
                 </div>
-                <span className="font-medium">-</span>
+                <span className="font-medium">0</span>
               </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Ditambahkan</span>
+                </div>
+                <span className="font-medium text-xs">{formattedDate}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Aksi Cepat</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button asChild className="w-full" variant="outline">
+                <Link href={`/admin/products/${product.id}/edit`}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Produk
+                </Link>
+              </Button>
+
+              <Button asChild className="w-full" variant="outline">
+                <Link href={`/admin/products?query=${product.sku}`}>
+                  <Package className="mr-2 h-4 w-4" />
+                  Cari SKU: {product.sku}
+                </Link>
+              </Button>
+
+              <Button asChild className="w-full" variant="outline">
+                <Link href={`/admin/products?brand=${product.brand.toLowerCase()}`}>
+                  <Package className="mr-2 h-4 w-4" />
+                  Lihat Produk {product.brand}
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>

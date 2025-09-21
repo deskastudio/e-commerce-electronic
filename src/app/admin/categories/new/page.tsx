@@ -1,14 +1,22 @@
-// app/admin/categories/new/page.tsx - New Category
-import { Metadata } from "next";
-import CategoryForm from "@/components/admin/categories/category-form";
+// app/admin/categories/add/page.tsx
+import AddCategoryForm from "@/components/admin/categories/add-category-form";
 
-export const metadata: Metadata = {
-  title: "Tambah Kategori Baru | Admin Panel",
-  description: "Tambahkan kategori baru untuk produk"
+export const metadata = {
+  title: "Tambah Kategori | Admin Dashboard",
+  description: "Tambah kategori produk baru"
 };
 
-export default function NewCategoryPage() {
+export default function AddCategoryPage() {
   return (
-    <CategoryForm isEditing={false} />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Tambah Kategori</h1>
+        <p className="text-muted-foreground">
+          Buat kategori baru untuk mengorganisir produk Anda
+        </p>
+      </div>
+      
+      <AddCategoryForm />
+    </div>
   );
 }

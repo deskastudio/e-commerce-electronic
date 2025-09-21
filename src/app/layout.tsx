@@ -1,7 +1,11 @@
+// src/app/layout.tsx - Root Layout yang diperbaiki
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import AuthProvider from '@/providers/auth-provider';
+import { CartProvider } from '@/providers/cart-provider';
+import ConditionalLayout from '@/components/layout/conditional-layout';
+import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -19,7 +23,16 @@ export default function RootLayout({
     <html lang="id">
       <body className={inter.className}>
         <AuthProvider>
-          {children}
+          <CartProvider>
+            <ConditionalLayout>
+              {children}
+            </ConditionalLayout>
+            <Toaster 
+              position="top-right" 
+              richColors
+              closeButton
+            />
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

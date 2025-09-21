@@ -1,9 +1,7 @@
-// app/admin/products/new/page.tsx - Updated with new structure
+// app/admin/products/new/page.tsx - New Product Page (Minimal)
 import { Metadata } from "next";
-import SimpleProductForm from "@/components/admin/products/product-form";
-
-// Updated imports with new structure
-import { CategoryService } from "@/lib/database/services";
+import ProductForm from "@/components/admin/products/product-form";
+import { CategoryService } from "@/lib/database/services/category-service";
 
 export const metadata: Metadata = {
   title: "Tambah Produk Baru | Admin Panel",
@@ -12,64 +10,69 @@ export const metadata: Metadata = {
 
 export default async function NewProductPage() {
   try {
-    // Initialize default categories if none exist
-    await CategoryService.initializeDefaultCategories();
+    console.log('🔄 Loading new product page...');
     
-    // Get categories with new service layer
+    // Get categories using server-side method
     const categories = await CategoryService.getCategoriesForSelect();
     
-    // Ensure we have at least one category
+    console.log('✅ Categories loaded for new product:', categories.length);
+    
     if (!categories || categories.length === 0) {
-      // Fallback categories if service fails
-      const fallbackCategories = [
-        { 
-          id: "gaming", 
-          name: "Gaming",
-          slug: "gaming"
-        },
-        { 
-          id: "accessories", 
-          name: "Accessories",
-          slug: "accessories"
-        },
-        { 
-          id: "monitors", 
-          name: "Monitors",
-          slug: "monitors"
-        }
-      ];
-      
       return (
-        <SimpleProductForm 
-          categories={fallbackCategories}
-          isEditing={false}
-        />
+        <div className="space-y-6">
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Error
+                </h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>
+                    Tidak ada kategori yang tersedia. Silakan tambahkan kategori terlebih dahulu.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       );
     }
     
     return (
-      <SimpleProductForm 
+      <ProductForm 
         categories={categories}
         isEditing={false}
       />
     );
   } catch (error) {
-    console.error('Error loading categories:', error);
-    
-    // Fallback with default categories
-    const defaultCategories = [
-      { 
-        id: "default", 
-        name: "Default",
-        slug: "default"
-      }
-    ];
+    console.error('❌ Error loading new product page:', error);
     
     return (
-      <SimpleProductForm 
-        categories={defaultCategories}
-        isEditing={false}
-      />
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Error
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>
+                  Terjadi kesalahan saat memuat halaman. Silakan coba lagi atau hubungi administrator.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-center">
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      </div>
     );
   }
 }

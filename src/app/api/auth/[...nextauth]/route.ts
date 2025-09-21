@@ -45,8 +45,9 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   pages: {
-    signIn: "/auth/login", // Diubah dari "/login" ke "/auth/login" sesuai URL yang diakses
-    error: "/auth/error", // Diubah juga untuk konsistensi
+    signIn: "/auth/login",
+    error: "/auth/error",
+    // Tidak perlu signUp page karena kita handle manual
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -67,20 +68,25 @@ export const authOptions: NextAuthOptions = {
       // Jika URL dimulai dengan baseUrl, ini adalah link internal
       if (url.startsWith(baseUrl)) return url;
       
-      // Jika URL adalah callbackUrl untuk admin
-      if (url.includes('callbackUrl=/admin')) {
+      // Redirect admin ke dashboard admin
+      if (url.includes('callbackUrl=/admin') || url.includes('/admin')) {
         return `${baseUrl}/admin`;
       }
       
-      // Jika URL adalah sign in default NextAuth
+      // Redirect ke auth/login untuk sign in
       if (url.includes('/api/auth/signin')) {
-        return `${baseUrl}/auth/login`; // Diubah untuk konsistensi
+        return `${baseUrl}/auth/login`;
+      }
+      
+      // Handle logout redirect
+      if (url.includes('/api/auth/signout')) {
+        return baseUrl;
       }
       
       // Izinkan URL relatif
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       
-      // Default ke URL dasar
+      // Default ke home
       return baseUrl;
     }
   },

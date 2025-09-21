@@ -1,144 +1,383 @@
-"use client"
+// components/product/product-info.tsx - FIXED VERSION
+'use client';
 
-import { useState } from "react"
-import { Heart, Minus, Plus, Truck, RotateCcw } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { useState } from 'react';
+import { Heart, Minus, Plus, ShoppingCart, Share2, Truck, Shield, RotateCcw, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Product } from '@/types/product';
+import { useCart } from '@/providers/cart-provider';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface ProductInfoProps {
-  productId?: number
+  product: Product;
 }
 
-export default function ProductInfo({ productId = 1 }: ProductInfoProps) {
-  const [quantity, setQuantity] = useState(2)
-  const [selectedColor, setSelectedColor] = useState("white")
-  const [selectedSize, setSelectedSize] = useState("M")
+export default function ProductInfo({ product }: ProductInfoProps) {
+  const { addToCart, cart } = useCart();
+  const { data: session } = useSession();
+  const router = useRouter();
+  
+  const [quantity, setQuantity] = useState(1);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // In a real app, you would fetch product data based on the ID
-  // For this example, we'll just use the ID in the component
+  // Get product ID (handle both id and _id)
+  const productId = product.id || product._id || '';
+  
+  // Check if item is already in cart
+  const existingItem = cart?.items?.find(item => item.productId === productId);
+  const currentQuantityInCart = existingItem?.quantity || 0;
+  const availableStock = (product.stock || 0) - currentQuantityInCart;
 
-  const incrementQuantity = () => {
-    setQuantity(quantity + 1)
-  }
+  // Format price to Indonesian Rupiah
+  const formatRupiah = (amount: number): string => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
 
-  const decrementQuantity = () => {
-    if (quantity > 1) {
-      setQuantity(quantity - 1)
+  // Get condition text and color
+  const getConditionInfo = (condition: string) => {
+    const conditionMap = {
+      'new': { text: 'Baru', color: 'bg-green-100 text-green-800' },
+      'refurbished': { text: 'Refurbished', color: 'bg-blue-100 text-blue-800' },
+      'used-like-new': { text: 'Bekas Seperti Baru', color: 'bg-orange-100 text-orange-800' },
+      'used-good': { text: 'Bekas Kondisi Baik', color: 'bg-yellow-100 text-yellow-800' }
+    };
+    return conditionMap[condition as keyof typeof conditionMap] || { text: condition, color: 'bg-gray-100 text-gray-800' };
+  };
+
+  // Get first valid image
+  const getFirstValidImage = (images: string[]): string => {
+    if (!images || images.length === 0) return '';
+    const validImage = images.find(img => img && img.trim() !== '');
+    return validImage || '';
+  };
+
+  const handleQuantityChange = (newQuantity: number) => {
+    if (newQuantity >= 1 && newQuantity <= availableStock) {
+      setQuantity(newQuantity);
     }
-  }
+  };
+
+  const handleAddToCart = async () => {
+    if (isLoading || availableStock < quantity) return;
+
+    // Validate product data
+    if (!productId) {
+      toast.error('Error: Product ID tidak ditemukan');
+      return;
+    }
+
+    if (!product.name) {
+      toast.error('Error: Nama produk tidak ditemukan');
+      return;
+    }
+
+    if (typeof product.price !== 'number' || product.price <= 0) {
+      toast.error('Error: Harga produk tidak valid');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Create cart item with correct structure
+      const cartItem = {
+        productId: productId,
+        name: product.name,
+        price: product.price,
+        quantity: quantity,
+        image: getFirstValidImage(product.images || []),
+        variant: undefined
+      };
+
+      console.log('Adding to cart from product info:', cartItem);
+      
+      await addToCart(cartItem);
+      
+      setShowSuccess(true);
+      toast.success('Produk berhasil ditambahkan!', {
+        description: `${product.name} (${quantity}x) telah ditambahkan ke keranjang`
+      });
+      
+      // Reset success state after 2 seconds
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+      toast.error('Gagal menambahkan produk', {
+        description: error instanceof Error ? error.message : 'Silakan coba lagi'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    try {
+      // Add to cart first, then redirect to checkout
+      await handleAddToCart();
+      if (!isLoading) {
+        router.push('/checkout');
+      }
+    } catch (error) {
+      console.error('Failed to buy now:', error);
+    }
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product.name,
+          text: `Check out this product: ${product.name}`,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.log('Error sharing:', error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.href);
+      toast.info('Link produk telah disalin ke clipboard');
+    }
+  };
+
+  const conditionInfo = getConditionInfo(product.condition || 'new');
+  const isOutOfStock = (product.stock || 0) <= 0 || availableStock <= 0;
 
   return (
     <div className="space-y-6">
+      {/* Product Title */}
       <div>
-        <h1 className="text-2xl font-bold">Havic HV G-92 Gamepad</h1>
-        <div className="mt-2 flex items-center gap-2">
-          <div className="flex">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <svg
-                key={star}
-                className="h-4 w-4 fill-yellow-400"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-              </svg>
-            ))}
-          </div>
-          <span className="text-sm text-muted-foreground">(150 Reviews)</span>
-          <Badge variant="outline" className="ml-2 bg-green-50 text-green-600">
-            In Stock
-          </Badge>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          {product.name || 'Produk Tidak Dikenal'}
+        </h1>
+        <div className="flex items-center gap-3 text-lg text-gray-600">
+          <span className="font-medium">{product.brand || 'Unknown Brand'}</span>
+          {product.model && (
+            <>
+              <span>•</span>
+              <span>{product.model}</span>
+            </>
+          )}
         </div>
       </div>
 
-      <div>
-        <span className="text-2xl font-bold">$192.00</span>
+      {/* Price */}
+      <div className="space-y-2">
+        <div className="text-3xl font-bold text-red-600">
+          {formatRupiah(product.price || 0)}
+        </div>
+        <div className="text-sm text-gray-500">
+          *Harga sudah termasuk PPN
+        </div>
       </div>
 
-      <p className="text-muted-foreground">
-        PlayStation 5 Controller Skin High quality vinyl with air channel adhesive for easy bubble free removal Pressure
-        sensitive. Product ID: {productId}
-      </p>
-
-      <div className="space-y-4">
-        <div>
-          <h3 className="mb-2 font-medium">Colours:</h3>
-          <div className="flex gap-2">
-            <button
-              className={`h-6 w-6 rounded-full bg-white ${
-                selectedColor === "white" ? "ring-2 ring-primary ring-offset-2" : ""
-              }`}
-              onClick={() => setSelectedColor("white")}
-              aria-label="White color"
-            />
-            <button
-              className={`h-6 w-6 rounded-full bg-red-500 ${
-                selectedColor === "red" ? "ring-2 ring-primary ring-offset-2" : ""
-              }`}
-              onClick={() => setSelectedColor("red")}
-              aria-label="Red color"
-            />
-          </div>
+      {/* Condition & Stock Status */}
+      <div className="flex items-center gap-4">
+        <Badge className={conditionInfo.color}>
+          {conditionInfo.text}
+        </Badge>
+        
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${
+            availableStock > 10 ? 'bg-green-500' :
+            availableStock > 0 ? 'bg-yellow-500' : 'bg-red-500'
+          }`}></div>
+          <span className={`text-sm font-medium ${
+            availableStock > 10 ? 'text-green-600' :
+            availableStock > 0 ? 'text-yellow-600' : 'text-red-600'
+          }`}>
+            {availableStock > 0 ? `${availableStock} unit tersedia` : 'Stok habis'}
+          </span>
         </div>
+      </div>
 
-        <div>
-          <h3 className="mb-2 font-medium">Size:</h3>
-          <div className="flex gap-2">
-            {["XS", "S", "M", "L", "XL"].map((size) => (
-              <button
-                key={size}
-                className={`flex h-8 w-8 items-center justify-center rounded-md border ${
-                  selectedSize === size ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"
-                }`}
-                onClick={() => setSelectedSize(size)}
+      {/* SKU & Category */}
+      <div className="text-sm text-gray-600 space-y-1">
+        {product.sku && <div>SKU: <span className="font-mono">{product.sku}</span></div>}
+        {product.category && <div>Kategori: <span className="capitalize">{product.category.replace('-', ' ')}</span></div>}
+        {product.warranty && (
+          <div>Garansi: <span className="text-green-600 font-medium">{product.warranty}</span></div>
+        )}
+      </div>
+
+      {/* Cart Info */}
+      {currentQuantityInCart > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-sm text-blue-700">
+            📦 {currentQuantityInCart} item sudah ada di keranjang
+          </p>
+        </div>
+      )}
+
+      {/* Quantity Selector */}
+      {!isOutOfStock && (
+        <div className="space-y-3">
+          <div className="text-sm font-medium text-gray-700">Jumlah:</div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center border border-gray-300 rounded-md">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleQuantityChange(quantity - 1)}
+                disabled={quantity <= 1}
+                className="h-10 w-10 p-0"
               >
-                {size}
-              </button>
-            ))}
+                <Minus className="h-4 w-4" />
+              </Button>
+              
+              <span className="w-12 text-center font-medium">
+                {quantity}
+              </span>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleQuantityChange(quantity + 1)}
+                disabled={quantity >= availableStock}
+                className="h-10 w-10 p-0"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <span className="text-sm text-gray-500">
+              (Maksimal {availableStock} unit)
+            </span>
           </div>
         </div>
+      )}
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center">
-            <button
-              className="flex h-10 w-10 items-center justify-center rounded-l-md border border-r-0 bg-gray-50"
-              onClick={decrementQuantity}
+      {/* Action Buttons */}
+      <div className="space-y-3">
+        {isOutOfStock ? (
+          <Button disabled className="w-full h-12 text-lg bg-gray-300 text-gray-500">
+            Stok Habis
+          </Button>
+        ) : (
+          <>
+            <Button 
+              onClick={handleAddToCart}
+              disabled={isLoading || quantity > availableStock}
+              className={`w-full h-12 text-lg font-medium transition-all duration-200 ${
+                showSuccess 
+                  ? 'bg-green-600 hover:bg-green-600' 
+                  : 'bg-red-600 hover:bg-red-700'
+              } text-white`}
             >
-              <Minus className="h-4 w-4" />
-            </button>
-            <div className="flex h-10 w-10 items-center justify-center border">{quantity}</div>
-            <button
-              className="flex h-10 w-10 items-center justify-center rounded-r-md border border-l-0 bg-gray-50"
-              onClick={incrementQuantity}
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2" />
+                  Menambahkan...
+                </>
+              ) : showSuccess ? (
+                <>
+                  <Check className="w-5 h-5 mr-2" />
+                  Berhasil Ditambahkan!
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  Tambah ke Keranjang {quantity > 1 && `(${quantity})`}
+                </>
+              )}
+            </Button>
+            
+            <Button 
+              onClick={handleBuyNow}
+              variant="outline"
+              className="w-full border-red-600 text-red-600 hover:bg-red-50 h-12 text-lg font-medium"
             >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-
-          <Button className="bg-primary text-white">Buy Now</Button>
-          <Button variant="outline" size="icon">
-            <Heart className="h-5 w-5" />
+              Beli Sekarang
+            </Button>
+          </>
+        )}
+        
+        {/* Wishlist & Share */}
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => setIsWishlisted(!isWishlisted)}
+          >
+            <Heart className={`w-4 h-4 mr-2 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+            {isWishlisted ? 'Tersimpan' : 'Simpan'}
+          </Button>
+          
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={handleShare}
+          >
+            <Share2 className="w-4 h-4 mr-2" />
+            Bagikan
           </Button>
         </div>
       </div>
 
-      <div className="space-y-4 rounded-md border p-4">
-        <div className="flex items-center gap-4">
-          <Truck className="h-5 w-5" />
-          <div>
-            <h3 className="font-medium">Free Delivery</h3>
-            <p className="text-sm text-muted-foreground">Enter your postal code for Delivery Availability</p>
+      {/* Quick Cart Actions */}
+      {session && currentQuantityInCart > 0 && (
+        <div className="border-t pt-4">
+          <div className="flex space-x-2">
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => router.push('/cart')}
+            >
+              Lihat Keranjang
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => router.push('/checkout')}
+            >
+              Checkout
+            </Button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <RotateCcw className="h-5 w-5" />
-          <div>
-            <h3 className="font-medium">Return Delivery</h3>
-            <p className="text-sm text-muted-foreground">Free 30 Days Delivery Returns. Details</p>
+      )}
+
+      {/* Features */}
+      <div className="border-t pt-6 space-y-4">
+        <div className="grid grid-cols-1 gap-4">
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            <Truck className="w-5 h-5 text-green-600" />
+            <span>Gratis ongkir untuk pembelian di atas Rp 500.000</span>
+          </div>
+          
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            <Shield className="w-5 h-5 text-blue-600" />
+            <span>Jaminan keaslian produk</span>
+          </div>
+          
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            <RotateCcw className="w-5 h-5 text-orange-600" />
+            <span>30 hari pengembalian tanpa ribet</span>
           </div>
         </div>
       </div>
-    </div>
-  )
-}
 
+      {/* Debug Info - Development only */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded border-t">
+          <strong>Debug Info:</strong>
+          <div>Product ID: {productId}</div>
+          <div>Available Stock: {availableStock}</div>
+          <div>In Cart: {currentQuantityInCart}</div>
+          <div>Selected Quantity: {quantity}</div>
+          <div>Product Name: {product.name}</div>
+          <div>Product Price: {product.price}</div>
+        </div>
+      )}
+    </div>
+  );
+}

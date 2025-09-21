@@ -1,11 +1,9 @@
-// components/admin/delete-product-button.tsx - Updated with new structure
+// components/admin/products/delete-product-button.tsx
 "use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,113 +13,89 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
-// Updated imports with new structure
-import { ProductService } from "@/lib/database/services";
+import { Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface DeleteProductButtonProps {
   id: string;
   name: string;
-  onSuccess?: () => void;
-  variant?: "icon" | "button";
-  size?: "default" | "sm" | "lg" | "icon";
 }
 
-export default function DeleteProductButton({
-  id,
-  name,
-  onSuccess,
-  variant = "icon",
-  size = "icon"
-}: DeleteProductButtonProps) {
-  const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+export default function DeleteProductButton({ id, name }: DeleteProductButtonProps) {
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  const handleDelete = () => {
-    if (!id) {
-      toast.error("ID produk tidak valid");
-      return;
-    }
-
+  const handleDelete = async () => {
     startTransition(async () => {
       try {
-        // Use new service layer for delete operation
-        const success = await ProductService.deleteProduct(id);
+        console.log('🗑️ Deleting product:', { id, name });
         
-        if (success) {
-          toast.success("Produk berhasil dihapus");
-          
-          // If there's a success callback, call it
-          if (typeof onSuccess === 'function') {
-            onSuccess();
-          } else {
-            // Default behavior: refresh the page
-            router.refresh();
-          }
-        } else {
-          toast.error("Gagal menghapus produk. Produk tidak ditemukan.");
+        const response = await fetch(`/api/products/${id}`, {
+          method: 'DELETE',
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || result.error || 'Failed to delete product');
         }
+
+        if (!result.success) {
+          throw new Error(result.message || result.error || 'Failed to delete product');
+        }
+
+        console.log('✅ Product deleted successfully');
+        toast.success(`Produk "${name}" berhasil dihapus`);
         
-        setOpen(false);
+        setIsOpen(false);
+        router.push("/admin/products");
+        router.refresh();
       } catch (error) {
-        console.error("Gagal menghapus produk:", error);
+        console.error('❌ Error deleting product:', error);
         toast.error(`Gagal menghapus produk: ${(error as Error).message}`);
       }
     });
   };
 
   return (
-    <>
-      {variant === "icon" ? (
-        <Button
-          variant="outline"
-          size={size}
-          className="text-red-500 hover:bg-red-50 hover:text-red-600"
-          onClick={() => setOpen(true)}
-          disabled={isPending}
-        >
+    <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" size="icon" disabled={isPending}>
           <Trash2 className="h-4 w-4" />
           <span className="sr-only">Hapus</span>
         </Button>
-      ) : (
-        <Button
-          variant="destructive"
-          size={size}
-          onClick={() => setOpen(true)}
-          disabled={isPending}
-          className="flex items-center gap-2"
-        >
-          <Trash2 className="h-4 w-4" />
-          <span>Hapus Produk</span>
-        </Button>
-      )}
-
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Apakah Anda yakin ingin menghapus?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Produk <span className="font-medium">{name}</span> akan dihapus secara permanen.
-              Tindakan ini tidak dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDelete();
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white"
-              disabled={isPending}
-            >
-              {isPending ? "Menghapus..." : "Hapus Produk"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Hapus Produk</AlertDialogTitle>
+          <AlertDialogDescription>
+            Apakah Anda yakin ingin menghapus produk "{name}"? 
+            Tindakan ini tidak dapat dibatalkan.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>
+            Batal
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            disabled={isPending}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Menghapus...
+              </>
+            ) : (
+              "Hapus"
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

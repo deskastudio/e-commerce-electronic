@@ -1,9 +1,6 @@
 import type React from "react"
 import Link from "next/link"
 import AccountSidebar from "@/components/account/account-sidebar"
-import Header from "@/components/common/header"
-import Footer from "@/components/common/footer"
-import TopBar from "@/components/home/top-bar"
 
 export default function AccountLayout({
   children,
@@ -12,8 +9,6 @@ export default function AccountLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-    <TopBar />
-    <Header />
     <div className="container mx-auto py-6 px-4 md:px-6">
       {/* Breadcrumb */}
       <div className="flex justify-between items-center mb-8">
@@ -39,7 +34,6 @@ export default function AccountLayout({
         <div className="md:col-span-3">{children}</div>
       </div>
     </div>
-    <Footer />
   </div>
   )
 }

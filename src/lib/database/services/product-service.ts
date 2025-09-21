@@ -1,105 +1,110 @@
-// lib/database/services/product-service.ts
-import { 
-  Product, 
-  ProductFormValues, 
-  ProductSearchParams,
-  ProductsPaginatedResponse,
-  ProductStatus 
-} from '@/types';
-import { ProductModel } from '@/lib/database/models';
+// lib/database/services/product-service.ts - Restored Original with Minimal Category Integration
+import { Product, ProductFormValues, ProductSearchParams } from '@/types/product';
 import connectDB from '@/lib/database/connection';
-import { 
-  executePaginatedQuery, 
-  handleDatabaseError, 
-  isValidObjectId,
-  buildSearchQuery,
-  buildFilterQuery,
-  documentToObject
-} from '@/lib/database/utils';
+import mongoose from 'mongoose';
+
+// Import Product model safely
+function getProductModel() {
+  try {
+    return mongoose.models.Product || require('@/lib/database/models/Product').default;
+  } catch (error) {
+    console.error('Error loading Product model:', error);
+    throw new Error('Product model not found');
+  }
+}
 
 export class ProductService {
-  /**
-   * Ensure database connection
-   */
+  
   private static async connect() {
     await connectDB();
   }
 
   /**
-   * Get all products with pagination and filters
+   * Get products with pagination and filters
    */
   static async getProductsPaginated(
     page: number = 1,
     limit: number = 10,
     searchParams: ProductSearchParams = {}
-  ): Promise<ProductsPaginatedResponse> {
+  ) {
     try {
-      await this.connect();
-
-      const { query, category, status } = searchParams;
+      console.log('🔄 ProductService.getProductsPaginated() - Starting...');
+      console.log('📥 Params:', { page, limit, searchParams });
       
-      // Build filter query
+      await this.connect();
+      const ProductModel = getProductModel();
+
+      const { query, category, status, brand, condition } = searchParams;
+      
+      // Build filters
       const filters: Record<string, any> = {};
       
       if (category && category !== 'all') {
         filters.category = category;
+        console.log('📋 Adding category filter:', category);
       }
       
       if (status && status !== 'all') {
         filters.status = status;
+        console.log('📋 Adding status filter:', status);
+      }
+
+      if (brand && brand !== 'all') {
+        filters.brand = new RegExp(brand, 'i');
+        console.log('📋 Adding brand filter:', brand);
+      }
+
+      if (condition && condition !== 'all') {
+        filters.condition = condition;
+        console.log('📋 Adding condition filter:', condition);
       }
 
       // Build search query
-      let searchQuery = {};
       if (query && query.trim()) {
-        searchQuery = buildSearchQuery(query.trim(), ['name', 'description', 'sku']);
+        filters.$or = [
+          { name: { $regex: query.trim(), $options: 'i' } },
+          { description: { $regex: query.trim(), $options: 'i' } },
+          { brand: { $regex: query.trim(), $options: 'i' } },
+          { model: { $regex: query.trim(), $options: 'i' } },
+          { sku: { $regex: query.trim(), $options: 'i' } }
+        ];
+        console.log('📋 Adding search query:', query.trim());
       }
 
-      // Combine filters and search
-      const finalQuery = { ...filters, ...searchQuery };
+      const skip = (page - 1) * limit;
+      console.log('📋 Pagination:', { skip, limit });
 
-      // Execute paginated query
-      const result = await executePaginatedQuery(
-        ProductModel,
-        finalQuery,
-        {
-          page,
-          limit,
-          sort: { createdAt: -1 }
-        }
-      );
+      // Execute queries
+      const [products, total] = await Promise.all([
+        ProductModel
+          .find(filters)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        ProductModel.countDocuments(filters)
+      ]);
 
-      // Convert documents to plain objects
-      const products = result.data.map(doc => documentToObject(doc));
+      const totalPages = Math.ceil(total / limit);
+
+      console.log('✅ Products fetched:', products.length, 'of', total);
+      
+      // Debug: Log first product to see structure
+      if (products.length > 0) {
+        console.log('🔍 First product structure:', JSON.stringify(products[0], null, 2));
+      }
 
       return {
-        products,
-        total: result.total,
-        page: result.page,
-        totalPages: result.totalPages,
-        hasNextPage: result.hasNextPage,
-        hasPrevPage: result.hasPrevPage
+        products: products.map(this.formatProduct),
+        total,
+        page,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
       };
     } catch (error) {
-      handleDatabaseError(error);
-    }
-  }
-
-  /**
-   * Get all products (without pagination)
-   */
-  static async getAllProducts(): Promise<Product[]> {
-    try {
-      await this.connect();
-      
-      const products = await ProductModel
-        .find({ status: 'active' })
-        .sort({ createdAt: -1 })
-        .lean();
-
-      return products.map(doc => documentToObject(doc));
-    } catch (error) {
-      handleDatabaseError(error);
+      console.error('❌ ProductService.getProductsPaginated() error:', error);
+      throw new Error(`Gagal mengambil data produk: ${(error as Error).message}`);
     }
   }
 
@@ -108,21 +113,31 @@ export class ProductService {
    */
   static async getProductById(id: string): Promise<Product | null> {
     try {
+      console.log('🔄 ProductService.getProductById() - Starting...');
+      console.log('📥 Product ID:', id);
+      
       await this.connect();
+      const ProductModel = getProductModel();
 
-      if (!isValidObjectId(id)) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        console.log('❌ Invalid ObjectId format');
         return null;
       }
 
       const product = await ProductModel.findById(id).lean();
       
       if (!product) {
+        console.log('📭 Product not found');
         return null;
       }
 
-      return documentToObject(product);
+      console.log('✅ Raw product from DB:', JSON.stringify(product, null, 2));
+      const formattedProduct = this.formatProduct(product);
+      console.log('✅ Formatted product:', JSON.stringify(formattedProduct, null, 2));
+      
+      return formattedProduct;
     } catch (error) {
-      console.error(`Error getting product with ID ${id}:`, error);
+      console.error('❌ ProductService.getProductById() error:', error);
       return null;
     }
   }
@@ -132,25 +147,69 @@ export class ProductService {
    */
   static async createProduct(data: ProductFormValues): Promise<Product> {
     try {
+      console.log('🔄 ProductService.createProduct() - Starting...');
+      console.log('📤 Input data:', JSON.stringify(data, null, 2));
+      
       await this.connect();
+      const ProductModel = getProductModel();
 
-      // Validate required fields
-      this.validateProductData(data);
+      // Validation
+      if (!data.name || !data.description || !data.price || !data.category || !data.sku || !data.brand || !data.model) {
+        throw new Error('Data produk tidak lengkap (nama, deskripsi, harga, kategori, SKU, brand, model wajib diisi)');
+      }
 
-      // Set default values
+      if (data.price <= 0) {
+        throw new Error('Harga harus lebih dari 0');
+      }
+
+      // Check SKU uniqueness
+      const existingSKU = await ProductModel.findOne({ sku: data.sku.toUpperCase() });
+      if (existingSKU) {
+        throw new Error(`SKU "${data.sku}" sudah digunakan. Gunakan SKU yang berbeda.`);
+      }
+
+      console.log('✅ Validation passed');
+
+      // Prepare product data
       const productData = {
-        ...data,
-        images: data.images.length > 0 ? data.images : ["/placeholder.svg"],
-        tags: data.tags || [],
-        isPhysical: data.isPhysical ?? true,
-        isTaxable: data.isTaxable ?? true,
-        isShippingRequired: data.isShippingRequired ?? true
+        name: data.name.trim(),
+        description: data.description.trim(),
+        brand: data.brand.trim(),
+        model: data.model.trim(),
+        sku: data.sku.trim().toUpperCase(),
+        condition: data.condition || 'new',
+        warranty: data.warranty?.trim() || '',
+        price: Number(data.price) || 0,
+        stock: Number(data.stock) || 0,
+        category: data.category.trim(),
+        status: data.status || 'active',
+        images: Array.isArray(data.images) && data.images.length > 0 
+          ? data.images.filter(img => img && img.trim()) 
+          : ["/placeholder.svg"],
       };
 
+      console.log('📝 Creating product with data:', JSON.stringify(productData, null, 2));
+
       const newProduct = await ProductModel.create(productData);
-      return documentToObject(newProduct);
+      console.log('✅ Product created successfully:', newProduct._id, '- SKU:', newProduct.sku);
+      
+      return this.formatProduct(newProduct);
     } catch (error) {
-      handleDatabaseError(error);
+      console.error('❌ ProductService.createProduct() error:', error);
+      
+      if (error instanceof Error) {
+        if (error.message.includes('E11000 duplicate key')) {
+          if (error.message.includes('sku')) {
+            throw new Error('SKU sudah digunakan. Gunakan SKU yang berbeda.');
+          }
+        }
+        if (error.message.includes('validation failed')) {
+          throw new Error(`Data produk tidak valid: ${error.message}`);
+        }
+        throw error;
+      }
+      
+      throw new Error('Gagal membuat produk');
     }
   }
 
@@ -159,35 +218,91 @@ export class ProductService {
    */
   static async updateProduct(id: string, data: ProductFormValues): Promise<Product | null> {
     try {
+      console.log('🔄 ProductService.updateProduct() - Starting...');
+      console.log('📥 Product ID:', id);
+      console.log('📤 Input data:', JSON.stringify(data, null, 2));
+      
       await this.connect();
+      const ProductModel = getProductModel();
 
-      if (!isValidObjectId(id)) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error('ID produk tidak valid');
       }
 
-      // Validate required fields
-      this.validateProductData(data);
+      // Validation
+      if (!data.name || !data.description || !data.price || !data.category || !data.sku || !data.brand || !data.model) {
+        throw new Error('Data produk tidak lengkap (nama, deskripsi, harga, kategori, SKU, brand, model wajib diisi)');
+      }
 
-      const updateData = {
-        ...data,
-        images: data.images.length > 0 ? data.images : ["/placeholder.svg"],
-        tags: data.tags || []
-      };
+      if (data.price <= 0) {
+        throw new Error('Harga harus lebih dari 0');
+      }
 
-      const updatedProduct = await ProductModel
-        .findByIdAndUpdate(id, updateData, { 
-          new: true, 
-          runValidators: true 
-        })
-        .lean();
-
-      if (!updatedProduct) {
+      // Check if product exists
+      const existingProduct = await ProductModel.findById(id);
+      if (!existingProduct) {
+        console.log('📭 Product not found');
         return null;
       }
 
-      return documentToObject(updatedProduct);
+      // Check SKU uniqueness (exclude current product)
+      const existingSKU = await ProductModel.findOne({ 
+        sku: data.sku.toUpperCase(),
+        _id: { $ne: id }
+      });
+      if (existingSKU) {
+        throw new Error(`SKU "${data.sku}" sudah digunakan. Gunakan SKU yang berbeda.`);
+      }
+
+      console.log('✅ Validation passed');
+
+      // Prepare update data
+      const updateData = {
+        name: data.name.trim(),
+        description: data.description.trim(),
+        brand: data.brand.trim(),
+        model: data.model.trim(),
+        sku: data.sku.trim().toUpperCase(),
+        condition: data.condition || 'new',
+        warranty: data.warranty?.trim() || '',
+        price: Number(data.price) || 0,
+        stock: Number(data.stock) || 0,
+        category: data.category.trim(),
+        status: data.status || 'active',
+        images: Array.isArray(data.images) && data.images.length > 0 
+          ? data.images.filter(img => img && img.trim()) 
+          : ["/placeholder.svg"],
+      };
+
+      console.log('📝 Final update data:', JSON.stringify(updateData, null, 2));
+
+      const updatedProduct = await ProductModel
+        .findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
+        .lean();
+
+      if (!updatedProduct) {
+        console.log('❌ Failed to update product');
+        return null;
+      }
+
+      console.log('✅ Product updated successfully:', updatedProduct._id, '- SKU:', updatedProduct.sku);
+      return this.formatProduct(updatedProduct);
     } catch (error) {
-      handleDatabaseError(error);
+      console.error('❌ ProductService.updateProduct() error:', error);
+      
+      if (error instanceof Error) {
+        if (error.message.includes('E11000 duplicate key')) {
+          if (error.message.includes('sku')) {
+            throw new Error('SKU sudah digunakan. Gunakan SKU yang berbeda.');
+          }
+        }
+        if (error.message.includes('validation failed')) {
+          throw new Error(`Data produk tidak valid: ${error.message}`);
+        }
+        throw error;
+      }
+      
+      throw new Error('Gagal mengupdate produk');
     }
   }
 
@@ -196,218 +311,245 @@ export class ProductService {
    */
   static async deleteProduct(id: string): Promise<boolean> {
     try {
+      console.log('🔄 ProductService.deleteProduct() - Starting...');
+      console.log('📥 Product ID:', id);
+      
       await this.connect();
+      const ProductModel = getProductModel();
 
-      if (!isValidObjectId(id)) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        console.log('❌ Invalid ObjectId format');
         return false;
       }
 
       const result = await ProductModel.findByIdAndDelete(id);
-      return !!result;
+      
+      if (!result) {
+        console.log('📭 Product not found or already deleted');
+        return false;
+      }
+
+      console.log('✅ Product deleted successfully:', result.name, '- SKU:', result.sku);
+      return true;
     } catch (error) {
-      console.error(`Error deleting product with ID ${id}:`, error);
+      console.error('❌ ProductService.deleteProduct() error:', error);
       return false;
     }
   }
 
   /**
-   * Search products
+   * Get product count by category (NEW - for category integration)
    */
-  static async searchProducts(query: string): Promise<Product[]> {
+  static async getProductCountByCategory(categorySlug: string): Promise<number> {
     try {
+      console.log('🔄 ProductService.getProductCountByCategory() - Starting...');
+      console.log('📥 Category slug:', categorySlug);
+      
       await this.connect();
-
-      if (!query.trim()) {
-        return [];
-      }
-
-      const searchQuery = buildSearchQuery(query.trim(), ['name', 'description', 'sku']);
-      const products = await ProductModel
-        .find({ ...searchQuery, status: 'active' })
-        .sort({ createdAt: -1 })
-        .limit(20)
-        .lean();
-
-      return products.map(doc => documentToObject(doc));
+      const ProductModel = getProductModel();
+      
+      const count = await ProductModel.countDocuments({ 
+        category: categorySlug,
+        status: { $ne: 'archived' }
+      });
+      
+      console.log('✅ Product count for category:', categorySlug, '=', count);
+      return count;
     } catch (error) {
-      console.error("Error searching products:", error);
-      return [];
+      console.error('❌ ProductService.getProductCountByCategory() error:', error);
+      return 0;
     }
   }
 
-  /**
-   * Get products by category
-   */
-  static async getProductsByCategory(category: string): Promise<Product[]> {
-    try {
-      await this.connect();
+  // Tambahkan method ini ke src/lib/database/services/product-service.ts
 
-      const products = await ProductModel
-        .find({ category, status: 'active' })
-        .sort({ createdAt: -1 })
-        .lean();
+/**
+ * Get available filter options from database
+ */
+static async getAvailableFilters(): Promise<{
+  categories: { id: string; name: string; count: number }[];
+  brands: { id: string; name: string; count: number }[];
+  conditions: { id: string; name: string; count: number }[];
+}> {
+  try {
+    console.log('🔍 ProductService.getAvailableFilters - Starting...');
+    
+    await this.connect();
+    const ProductModel = getProductModel();
 
-      return products.map(doc => documentToObject(doc));
-    } catch (error) {
-      console.error(`Error getting products in category ${category}:`, error);
-      return [];
-    }
+    // Get categories with counts
+    const categoryAggregation = await ProductModel.aggregate([
+      { $match: { status: 'active' } },
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          id: '$_id',
+          name: {
+            $replaceAll: {
+              input: {
+                $concat: [
+                  { $toUpper: { $substr: ['$_id', 0, 1] } },
+                  { $substr: ['$_id', 1, -1] }
+                ]
+              },
+              find: '-',
+              replacement: ' '
+            }
+          },
+          count: 1,
+          _id: 0
+        }
+      },
+      { $sort: { name: 1 } }
+    ]);
+
+    // Get brands with counts
+    const brandAggregation = await ProductModel.aggregate([
+      { $match: { status: 'active' } },
+      {
+        $group: {
+          _id: '$brand',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          id: { $toLower: '$_id' },
+          name: '$_id',
+          count: 1,
+          _id: 0
+        }
+      },
+      { $sort: { name: 1 } }
+    ]);
+
+    // Get conditions with counts
+    const conditionAggregation = await ProductModel.aggregate([
+      { $match: { status: 'active' } },
+      {
+        $group: {
+          _id: '$condition',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          id: '$_id',
+          name: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$_id', 'new'] }, then: 'Baru' },
+                { case: { $eq: ['$_id', 'refurbished'] }, then: 'Refurbished' },
+                { case: { $eq: ['$_id', 'used-like-new'] }, then: 'Bekas Seperti Baru' },
+                { case: { $eq: ['$_id', 'used-good'] }, then: 'Bekas Kondisi Baik' }
+              ],
+              default: '$_id'
+            }
+          },
+          count: 1,
+          _id: 0
+        }
+      },
+      { $sort: { id: 1 } }
+    ]);
+
+    const result = {
+      categories: categoryAggregation,
+      brands: brandAggregation,
+      conditions: conditionAggregation
+    };
+
+    console.log('✅ Available filters retrieved:', {
+      categories: result.categories.length,
+      brands: result.brands.length,
+      conditions: result.conditions.length
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('❌ ProductService.getAvailableFilters error:', error);
+    throw error;
   }
+}
 
   /**
-   * Get products by status
+   * Update product counts for all categories (NEW - for category integration)
    */
-  static async getProductsByStatus(status: ProductStatus): Promise<Product[]> {
+  static async updateCategoryProductCounts(): Promise<Record<string, number>> {
     try {
+      console.log('🔄 ProductService.updateCategoryProductCounts() - Starting...');
+      
       await this.connect();
-
-      const products = await ProductModel
-        .find({ status })
-        .sort({ createdAt: -1 })
-        .lean();
-
-      return products.map(doc => documentToObject(doc));
-    } catch (error) {
-      console.error(`Error getting products with status ${status}:`, error);
-      return [];
-    }
-  }
-
-  /**
-   * Get low stock products
-   */
-  static async getLowStockProducts(threshold: number = 5): Promise<Product[]> {
-    try {
-      await this.connect();
-
-      const products = await ProductModel
-        .find({ 
-          stock: { $lte: threshold }, 
-          status: 'active' 
-        })
-        .sort({ stock: 1 })
-        .lean();
-
-      return products.map(doc => documentToObject(doc));
-    } catch (error) {
-      console.error("Error getting low stock products:", error);
-      return [];
-    }
-  }
-
-  /**
-   * Update product stock
-   */
-  static async updateProductStock(id: string, quantity: number): Promise<Product | null> {
-    try {
-      await this.connect();
-
-      if (!isValidObjectId(id)) {
-        throw new Error('ID produk tidak valid');
-      }
-
-      const updatedProduct = await ProductModel
-        .findByIdAndUpdate(
-          id, 
-          { $inc: { stock: quantity } }, 
-          { new: true, runValidators: true }
-        )
-        .lean();
-
-      if (!updatedProduct) {
-        return null;
-      }
-
-      return documentToObject(updatedProduct);
-    } catch (error) {
-      handleDatabaseError(error);
-    }
-  }
-
-  /**
-   * Get product statistics
-   */
-  static async getProductStats(): Promise<{
-    total: number;
-    active: number;
-    draft: number;
-    archived: number;
-    lowStock: number;
-  }> {
-    try {
-      await this.connect();
-
-      const [total, active, draft, archived, lowStock] = await Promise.all([
-        ProductModel.countDocuments(),
-        ProductModel.countDocuments({ status: 'active' }),
-        ProductModel.countDocuments({ status: 'draft' }),
-        ProductModel.countDocuments({ status: 'archived' }),
-        ProductModel.countDocuments({ stock: { $lte: 5 }, status: 'active' })
+      const ProductModel = getProductModel();
+      
+      // Get product counts grouped by category
+      const categoryProductCounts = await ProductModel.aggregate([
+        {
+          $match: { status: { $ne: 'archived' } }
+        },
+        {
+          $group: {
+            _id: '$category',
+            count: { $sum: 1 }
+          }
+        }
       ]);
 
-      return {
-        total,
-        active,
-        draft,
-        archived,
-        lowStock
-      };
+      const countsMap: Record<string, number> = {};
+      categoryProductCounts.forEach(item => {
+        countsMap[item._id] = item.count;
+      });
+
+      console.log('✅ Category product counts updated:', countsMap);
+      return countsMap;
     } catch (error) {
-      console.error("Error getting product stats:", error);
-      return {
-        total: 0,
-        active: 0,
-        draft: 0,
-        archived: 0,
-        lowStock: 0
-      };
+      console.error('❌ ProductService.updateCategoryProductCounts() error:', error);
+      return {};
     }
   }
 
   /**
-   * Validate product data
+   * Format product document to Product type
    */
-  private static validateProductData(data: ProductFormValues): void {
-    if (!data.name || data.name.trim() === '') {
-      throw new Error('Nama produk harus diisi');
-    }
-
-    if (!data.description || data.description.trim() === '') {
-      throw new Error('Deskripsi produk harus diisi');
-    }
-
-    if (typeof data.price !== 'number' || data.price <= 0) {
-      throw new Error('Harga produk harus berupa angka positif');
-    }
-
-    if (data.discountPrice !== undefined) {
-      if (typeof data.discountPrice !== 'number' || data.discountPrice < 0) {
-        throw new Error('Harga diskon harus berupa angka non-negatif');
-      }
-      if (data.discountPrice >= data.price) {
-        throw new Error('Harga diskon harus lebih kecil dari harga normal');
-      }
-    }
-
-    if (typeof data.stock !== 'number' || data.stock < 0) {
-      throw new Error('Stok harus berupa angka non-negatif');
-    }
-
-    if (!data.category || data.category.trim() === '') {
-      throw new Error('Kategori harus dipilih');
-    }
-
-    const validStatuses: ProductStatus[] = ['active', 'draft', 'archived'];
-    if (!validStatuses.includes(data.status)) {
-      throw new Error(`Status harus salah satu dari: ${validStatuses.join(', ')}`);
-    }
-
-    if (!data.images || data.images.length === 0) {
-      throw new Error('Minimal satu gambar produk harus diunggah');
-    }
-
-    if (data.images.length > 5) {
-      throw new Error('Maksimal 5 gambar yang dapat diunggah');
-    }
+  private static formatProduct(doc: any): Product {
+    console.log('📋 Formatting product - Raw doc keys:', Object.keys(doc));
+    console.log('📋 Raw document data:', {
+      _id: doc._id,
+      name: doc.name,
+      sku: doc.sku,
+      brand: doc.brand,
+      model: doc.model,
+      images: doc.images
+    });
+    
+    const formatted = {
+      id: doc._id ? doc._id.toString() : '',
+      name: doc.name || '',
+      description: doc.description || '',
+      brand: doc.brand || '',
+      model: doc.model || '',
+      sku: doc.sku || '',
+      condition: doc.condition || 'new',
+      warranty: doc.warranty || '',
+      price: typeof doc.price === 'number' ? doc.price : 0,
+      stock: typeof doc.stock === 'number' ? doc.stock : 0,
+      category: doc.category || '',
+      status: doc.status || 'active',
+      images: Array.isArray(doc.images) && doc.images.length > 0 
+        ? doc.images.filter((img: string) => img && img.trim() && img !== "/placeholder.svg")
+        : ["/placeholder.svg"],
+      tags: Array.isArray(doc.tags) ? doc.tags : [],
+      isFeatured: doc.isFeatured || false,
+      createdAt: doc.createdAt ? doc.createdAt.toISOString() : new Date().toISOString(),
+      updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : new Date().toISOString()
+    };
+    
+    console.log('📋 Formatted product result:', formatted);
+    return formatted;
   }
 }

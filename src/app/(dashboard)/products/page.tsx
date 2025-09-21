@@ -1,107 +1,114 @@
-import TopBar from "@/components/home/top-bar"
-import Header from "@/components/common/header"
-import Footer from "@/components/common/footer"
-import ProductsHeader from "@/components/products/products-header"
-import ProductsGrid from "@/components/products/products-grid"
-import ProductsSidebar from "@/components/products/products-sidebar"
-import ProductsPagination from "@/components/products/products-pagination"
-import Link from "next/link"
+// src/app/products/page.tsx - FIXED VERSION with Correct Imports
+import Link from "next/link";
+import ProductHeader from "@/components/product/product-header";
+import ProductsGrid from "@/components/product/product-grid";
+import ProductFilter from "@/components/product/product-filter";
+import ProductPagination from "@/components/product/product-pagination";
+
+export const metadata = {
+  title: "Products - Electronic Commerce",
+  description: "Browse our wide selection of electronic products"
+};
 
 export default function ProductsPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined }
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  // Parse and validate page parameter
-  const page =
-    typeof searchParams.page === "string"
-      ? Number.parseInt(searchParams.page) > 0
-        ? Number.parseInt(searchParams.page)
-        : 1
-      : 1
+  console.log('🛍️ Products page loading with searchParams:', searchParams);
 
-  // Parse category parameter (can be string or array)
-  const category =
-    typeof searchParams.category === "string"
-      ? searchParams.category
-      : Array.isArray(searchParams.category)
-        ? searchParams.category[0]
-        : undefined
+  // Parse parameters
+  const page = typeof searchParams.page === "string" ? 
+    Math.max(1, parseInt(searchParams.page)) : 1;
+  
+  const category = typeof searchParams.category === "string" ? 
+    searchParams.category : undefined;
+  
+  const search = typeof searchParams.search === "string" ? 
+    searchParams.search : undefined;
+  
+  const sort = typeof searchParams.sort === "string" ? 
+    searchParams.sort : "newest";
+  
+  const minPrice = typeof searchParams.minPrice === "string" ? 
+    parseInt(searchParams.minPrice) : 0;
+  
+  const maxPrice = typeof searchParams.maxPrice === "string" ? 
+    parseInt(searchParams.maxPrice) : 10000000;
+  
+  const brand = typeof searchParams.brand === "string" ? 
+    searchParams.brand.split(",") : undefined;
+  
+  const condition = typeof searchParams.condition === "string" ? 
+    searchParams.condition : undefined;
 
-  // Parse search parameter
-  const search = typeof searchParams.search === "string" ? searchParams.search : undefined
-
-  // Parse sort parameter
-  const sort = typeof searchParams.sort === "string" ? searchParams.sort : undefined
-
-  // Parse price range parameters
-  const minPrice = typeof searchParams.minPrice === "string" ? Number.parseInt(searchParams.minPrice) : undefined
-
-  const maxPrice = typeof searchParams.maxPrice === "string" ? Number.parseInt(searchParams.maxPrice) : undefined
-
-  // Parse brand parameter
-  const brand =
-    typeof searchParams.brand === "string"
-      ? searchParams.brand.split(",")
-      : Array.isArray(searchParams.brand)
-        ? searchParams.brand
-        : undefined
-
-  // Parse rating parameter
-  const rating =
-    typeof searchParams.rating === "string"
-      ? searchParams.rating.split(",").map((r) => Number.parseInt(r))
-      : Array.isArray(searchParams.rating)
-        ? searchParams.rating.map((r) => Number.parseInt(r as string))
-        : undefined
+  console.log('📊 Parsed filters:', {
+    page, category, search, sort, minPrice, maxPrice, brand, condition
+  });
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <TopBar />
-      <Header />
-      <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
-          <nav className="mb-8 flex space-x-2 text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground">
-              Home
-            </Link>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header dengan Search & Sort */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          
+          {/* Breadcrumb */}
+          <nav className="mb-6 flex space-x-2 text-sm text-gray-600">
+            <Link href="/" className="hover:text-red-600">Home</Link>
             <span>/</span>
-            <span className="text-foreground">Products</span>
+            <span className="text-gray-900 font-medium">Products</span>
             {category && (
               <>
                 <span>/</span>
-                <span className="text-foreground capitalize">{category}</span>
+                <span className="text-gray-900 font-medium capitalize">
+                  {category.replace('-', ' ')}
+                </span>
               </>
             )}
           </nav>
 
-          <ProductsHeader initialSearch={search} />
+          {/* Header dengan Search & Sort */}
+          <ProductHeader 
+            initialSearch={search}
+            currentSort={sort}
+          />
+        </div>
+      </div>
 
-          <div className="mt-8 grid gap-8 lg:grid-cols-4">
-            <ProductsSidebar
-              initialCategories={category ? [category] : []}
-              initialBrands={brand || []}
-              initialRatings={rating || []}
-              initialPriceRange={[minPrice || 0, maxPrice || 1000]}
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid gap-8 lg:grid-cols-4">
+          
+          {/* Filters Sidebar */}
+          <div className="lg:col-span-1">
+            <ProductFilter
+              currentCategory={category}
+              currentBrand={brand || []}
+              currentCondition={condition}
+              currentPriceRange={[minPrice, maxPrice]}
             />
-            <div className="lg:col-span-3">
-              <ProductsGrid
-                page={page}
-                category={category}
-                search={search}
-                sort={sort}
-                minPrice={minPrice}
-                maxPrice={maxPrice}
-                brand={brand}
-                rating={rating}
-              />
-              <ProductsPagination currentPage={page} totalPages={5} />
-            </div>
+          </div>
+          
+          {/* Products Grid */}
+          <div className="lg:col-span-3 space-y-6">
+            <ProductsGrid
+              page={page}
+              category={category}
+              search={search}
+              sort={sort}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              brand={brand}
+              condition={condition}
+            />
+            
+            <ProductPagination 
+              currentPage={page}
+              searchParams={searchParams}
+            />
           </div>
         </div>
-      </main>
-      <Footer />
+      </div>
     </div>
-  )
+  );
 }
-

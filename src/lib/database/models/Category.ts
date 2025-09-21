@@ -1,106 +1,99 @@
-// lib/database/models/Category.ts
+// lib/models/Category.ts
 import mongoose, { Schema, Document } from 'mongoose';
-import { Category } from '@/types';
 
-// Interface untuk document MongoDB
-export interface CategoryDocument extends Omit<Category, 'id'>, Document {
+export interface ICategoryDocument extends Document {
   _id: mongoose.Types.ObjectId;
+  name: string;
+  slug: string;
+  description: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// Schema definition
-const categorySchema = new Schema<CategoryDocument>({
-  name: { 
-    type: String, 
+// Function to generate slug from name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .trim()
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
+
+const categorySchema = new Schema<ICategoryDocument>({
+  name: {
+    type: String,
     required: [true, 'Nama kategori harus diisi'],
     trim: true,
     maxlength: [100, 'Nama kategori maksimal 100 karakter'],
     unique: true
   },
-  slug: { 
-    type: String, 
+  slug: {
+    type: String,
     required: [true, 'Slug kategori harus diisi'],
-    trim: true,
-    lowercase: true,
     unique: true,
-    match: [/^[a-z0-9-]+$/, 'Slug hanya boleh menggunakan huruf kecil, angka, dan tanda hubung']
+    lowercase: true
   },
-  description: { 
+  description: {
     type: String,
     trim: true,
-    maxlength: [500, 'Deskripsi maksimal 500 karakter']
-  },
-  imageUrl: { 
-    type: String,
-    trim: true,
-    validate: {
-      validator: function(url: string) {
-        if (!url) return true; // Optional field
-        return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
-      },
-      message: 'URL gambar tidak valid'
-    }
-  },
-  isActive: { 
-    type: Boolean, 
-    default: true 
+    maxlength: [500, 'Deskripsi maksimal 500 karakter'],
+    default: ''
   }
 }, {
   timestamps: true,
-  toJSON: { 
-    virtuals: true,
-    transform: function(doc, ret) {
+  toJSON: {
+    transform: (doc, ret) => {
       ret.id = ret._id.toString();
       delete ret._id;
       delete ret.__v;
       return ret;
     }
   },
-  toObject: { virtuals: true }
-});
-
-// Indexes
-categorySchema.index({ name: 1 });
-categorySchema.index({ slug: 1 });
-categorySchema.index({ isActive: 1 });
-
-// Virtual untuk menghitung jumlah produk dalam kategori
-categorySchema.virtual('productCount', {
-  ref: 'Product',
-  localField: 'slug',
-  foreignField: 'category',
-  count: true
-});
-
-// Pre-save middleware untuk auto-generate slug
-categorySchema.pre('save', function(this: CategoryDocument, next) {
-  if (this.isModified('name') && !this.slug) {
-    this.slug = this.name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single
-      .trim();
+  toObject: {
+    transform: (doc, ret) => {
+      ret.id = ret._id.toString();
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    }
   }
+});
+
+// Generate slug from name before saving
+categorySchema.pre('save', function(next) {
+  console.log('🔄 Pre-save middleware triggered');
+  console.log('📝 Document name:', this.name);
+  console.log('📝 Current slug:', this.slug);
+  console.log('📝 isModified name:', this.isModified('name'));
+  console.log('📝 isNew:', this.isNew);
+  
+  if (this.isModified('name') || this.isNew || !this.slug) {
+    const generatedSlug = generateSlug(this.name);
+    console.log('🔧 Generated slug:', generatedSlug);
+    this.slug = generatedSlug;
+  }
+  
+  console.log('✅ Final slug:', this.slug);
   next();
 });
 
-// Static methods
-categorySchema.statics.findActive = function() {
-  return this.find({ isActive: true }).sort({ name: 1 });
-};
+// Create indexes for better performance
+categorySchema.index({ name: 1 });
+categorySchema.index({ slug: 1 });
 
-categorySchema.statics.findBySlug = function(slug: string) {
-  return this.findOne({ slug, isActive: true });
-};
+// Prevent duplicate model compilation
+let CategoryModel: mongoose.Model<ICategoryDocument>;
 
-// Instance methods
-categorySchema.methods.getProductCount = async function() {
-  const ProductModel = mongoose.model('Product');
-  return await ProductModel.countDocuments({ category: this.slug, status: 'active' });
-};
-
-// Prevent recompilation in development
-const CategoryModel = mongoose.models.Category as mongoose.Model<CategoryDocument> || 
-                     mongoose.model<CategoryDocument>('Category', categorySchema);
+try {
+  CategoryModel = mongoose.model<ICategoryDocument>('Category');
+  console.log('✅ Using existing Category model');
+} catch (error) {
+  CategoryModel = mongoose.model<ICategoryDocument>('Category', categorySchema);
+  console.log('✅ Created new Category model');
+}
 
 export default CategoryModel;

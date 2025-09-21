@@ -1,382 +1,159 @@
-// lib/database/services/validation-service.ts
-import { ProductFormValues, CategoryFormValues, ValidationError } from '@/types';
+// lib/database/services/validation-service.ts - Minimal Validation Service
+import { ProductFormValues, ProductValidationErrors } from '@/types/product';
 
 export class ValidationService {
   /**
-   * Validate product data with detailed error reporting
+   * Sanitize product data by trimming strings and handling empty values
    */
-  static validateProduct(data: ProductFormValues): ValidationError[] {
-    const errors: ValidationError[] = [];
+  static sanitizeProductData(data: ProductFormValues): ProductFormValues {
+    return {
+      name: data.name?.trim() || "",
+      description: data.description?.trim() || "",
+      brand: data.brand?.trim() || "",
+      model: data.model?.trim() || "",
+      sku: data.sku?.trim().toUpperCase() || "",
+      condition: data.condition || "new",
+      warranty: data.warranty?.trim() || "",
+      price: Number(data.price) || 0,
+      stock: Number(data.stock) || 0,
+      category: data.category?.trim() || "",
+      status: data.status || "active",
+      images: Array.isArray(data.images) ? data.images.filter(img => img && img.trim()) : [],
+    };
+  }
 
-    // Name validation
-    if (!data.name || data.name.trim() === '') {
-      errors.push({
-        field: 'name',
-        message: 'Nama produk harus diisi'
-      });
-    } else if (data.name.length > 200) {
-      errors.push({
-        field: 'name',
-        message: 'Nama produk maksimal 200 karakter'
-      });
+  /**
+   * Validate product data
+   */
+  static validateProduct(data: ProductFormValues): ProductValidationErrors {
+    const errors: ProductValidationErrors = {};
+
+    // Required field validations
+    if (!data.name || !data.name.trim()) {
+      errors.name = "Nama produk harus diisi";
     }
 
-    // Description validation
-    if (!data.description || data.description.trim() === '') {
-      errors.push({
-        field: 'description',
-        message: 'Deskripsi produk harus diisi'
-      });
-    } else if (data.description.length > 2000) {
-      errors.push({
-        field: 'description',
-        message: 'Deskripsi maksimal 2000 karakter'
-      });
+    if (!data.description || !data.description.trim()) {
+      errors.description = "Deskripsi produk harus diisi";
+    }
+
+    if (!data.brand || !data.brand.trim()) {
+      errors.brand = "Brand harus diisi";
+    }
+
+    if (!data.model || !data.model.trim()) {
+      errors.model = "Model harus diisi";
+    }
+
+    if (!data.sku || !data.sku.trim()) {
+      errors.sku = "SKU harus diisi";
+    }
+
+    if (!data.category || !data.category.trim()) {
+      errors.category = "Kategori harus dipilih";
     }
 
     // Price validation
-    if (typeof data.price !== 'number' || data.price <= 0) {
-      errors.push({
-        field: 'price',
-        message: 'Harga produk harus berupa angka positif'
-      });
-    } else if (data.price > 1000000000) { // 1 billion max
-      errors.push({
-        field: 'price',
-        message: 'Harga produk terlalu besar'
-      });
-    }
-
-    // Discount price validation
-    if (data.discountPrice !== undefined) {
-      if (typeof data.discountPrice !== 'number' || data.discountPrice < 0) {
-        errors.push({
-          field: 'discountPrice',
-          message: 'Harga diskon harus berupa angka non-negatif'
-        });
-      } else if (data.discountPrice >= data.price) {
-        errors.push({
-          field: 'discountPrice',
-          message: 'Harga diskon harus lebih kecil dari harga normal'
-        });
-      }
+    const price = Number(data.price);
+    if (!price || price <= 0) {
+      errors.price = "Harga harus lebih dari 0";
     }
 
     // Stock validation
-    if (typeof data.stock !== 'number' || data.stock < 0) {
-      errors.push({
-        field: 'stock',
-        message: 'Stok harus berupa angka non-negatif'
-      });
-    } else if (data.stock > 1000000) { // 1 million max
-      errors.push({
-        field: 'stock',
-        message: 'Stok terlalu besar'
-      });
+    const stock = Number(data.stock);
+    if (stock < 0) {
+      errors.stock = "Stok tidak boleh negatif";
     }
 
-    // Category validation
-    if (!data.category || data.category.trim() === '') {
-      errors.push({
-        field: 'category',
-        message: 'Kategori harus dipilih'
-      });
+    // Condition validation
+    const validConditions = ['new', 'refurbished', 'used-like-new', 'used-good'];
+    if (!validConditions.includes(data.condition)) {
+      errors.condition = "Kondisi produk tidak valid";
     }
 
-    // Status validation
+    // Status validation  
     const validStatuses = ['active', 'draft', 'archived'];
     if (!validStatuses.includes(data.status)) {
-      errors.push({
-        field: 'status',
-        message: `Status harus salah satu dari: ${validStatuses.join(', ')}`
-      });
+      errors.status = "Status produk tidak valid";
     }
 
     // Images validation
     if (!data.images || data.images.length === 0) {
-      errors.push({
-        field: 'images',
-        message: 'Minimal satu gambar produk harus diunggah'
-      });
-    } else if (data.images.length > 5) {
-      errors.push({
-        field: 'images',
-        message: 'Maksimal 5 gambar yang dapat diunggah'
-      });
+      errors.images = "Minimal satu gambar produk harus diunggah";
     }
 
-    // SKU validation (if provided)
-    if (data.sku && data.sku.trim() !== '') {
-      if (data.sku.length > 50) {
-        errors.push({
-          field: 'sku',
-          message: 'SKU maksimal 50 karakter'
-        });
+    // SKU format validation (basic)
+    if (data.sku && data.sku.trim()) {
+      const sku = data.sku.trim().toUpperCase();
+      if (sku.length < 3) {
+        errors.sku = "SKU minimal 3 karakter";
       }
-      if (!/^[A-Z0-9-_]+$/i.test(data.sku)) {
-        errors.push({
-          field: 'sku',
-          message: 'SKU hanya boleh menggunakan huruf, angka, tanda hubung, dan underscore'
-        });
+      if (!/^[A-Z0-9-]+$/.test(sku)) {
+        errors.sku = "SKU hanya boleh mengandung huruf, angka, dan tanda minus";
       }
     }
 
-    // Barcode validation (if provided)
-    if (data.barcode && data.barcode.trim() !== '') {
-      if (data.barcode.length > 50) {
-        errors.push({
-          field: 'barcode',
-          message: 'Barcode maksimal 50 karakter'
-        });
-      }
-    }
-
-    // Tags validation
-    if (data.tags && data.tags.length > 0) {
-      if (data.tags.length > 10) {
-        errors.push({
-          field: 'tags',
-          message: 'Maksimal 10 tags per produk'
-        });
-      }
-      
-      // Validate individual tags
-      data.tags.forEach((tag, index) => {
-        if (tag.length > 30) {
-          errors.push({
-            field: 'tags',
-            message: `Tag "${tag}" terlalu panjang (maksimal 30 karakter)`
-          });
-        }
-      });
-    }
-
-    // Cost validation (if provided)
-    if (data.cost !== undefined) {
-      if (typeof data.cost !== 'number' || data.cost < 0) {
-        errors.push({
-          field: 'cost',
-          message: 'Biaya per item harus berupa angka non-negatif'
-        });
-      }
+    // Name length validation
+    if (data.name && data.name.trim().length > 200) {
+      errors.name = "Nama produk maksimal 200 karakter";
     }
 
     return errors;
   }
 
   /**
-   * Validate category data
+   * Check if validation errors exist
    */
-  static validateCategory(data: CategoryFormValues): ValidationError[] {
-    const errors: ValidationError[] = [];
-
-    // Name validation
-    if (!data.name || data.name.trim() === '') {
-      errors.push({
-        field: 'name',
-        message: 'Nama kategori harus diisi'
-      });
-    } else if (data.name.length > 100) {
-      errors.push({
-        field: 'name',
-        message: 'Nama kategori maksimal 100 karakter'
-      });
-    }
-
-    // Slug validation
-    if (data.slug) {
-      if (data.slug.length > 100) {
-        errors.push({
-          field: 'slug',
-          message: 'Slug kategori maksimal 100 karakter'
-        });
-      }
-      if (!/^[a-z0-9-]+$/.test(data.slug)) {
-        errors.push({
-          field: 'slug',
-          message: 'Slug hanya boleh menggunakan huruf kecil, angka, dan tanda hubung'
-        });
-      }
-    }
-
-    // Description validation
-    if (data.description && data.description.length > 500) {
-      errors.push({
-        field: 'description',
-        message: 'Deskripsi kategori maksimal 500 karakter'
-      });
-    }
-
-    // Image URL validation
-    if (data.imageUrl && data.imageUrl.trim() !== '') {
-      const urlRegex = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)$/i;
-      if (!urlRegex.test(data.imageUrl)) {
-        errors.push({
-          field: 'imageUrl',
-          message: 'URL gambar tidak valid atau format tidak didukung'
-        });
-      }
-    }
-
-    return errors;
+  static isValid(errors: ProductValidationErrors): boolean {
+    return Object.keys(errors).length === 0;
   }
 
   /**
-   * Validate file upload
+   * Format validation errors into a readable string
    */
-  static validateFileUpload(
-    file: File,
-    config: {
-      maxSize?: number;
-      allowedTypes?: string[];
-      maxFilename?: number;
-    } = {}
-  ): ValidationError[] {
-    const errors: ValidationError[] = [];
+  static formatErrors(errors: ProductValidationErrors): string {
+    const errorMessages = Object.values(errors).filter(Boolean);
+    if (errorMessages.length === 0) return "";
     
-    const {
-      maxSize = 5 * 1024 * 1024, // 5MB default
-      allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-      maxFilename = 255
-    } = config;
-
-    // File size validation
-    if (file.size > maxSize) {
-      const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(1);
-      errors.push({
-        field: 'file',
-        message: `Ukuran file melebihi batas maksimal ${maxSizeMB}MB`
-      });
+    if (errorMessages.length === 1) {
+      return errorMessages[0];
     }
-
-    // File type validation
-    if (!allowedTypes.includes(file.type)) {
-      const allowedExtensions = allowedTypes
-        .map(type => type.split('/')[1])
-        .join(', ');
-      errors.push({
-        field: 'file',
-        message: `Tipe file tidak didukung. Tipe yang diizinkan: ${allowedExtensions}`
-      });
-    }
-
-    // Filename length validation
-    if (file.name.length > maxFilename) {
-      errors.push({
-        field: 'file',
-        message: `Nama file terlalu panjang (maksimal ${maxFilename} karakter)`
-      });
-    }
-
-    // Check for potentially dangerous filenames
-    if (/[<>:"/\\|?*]/.test(file.name)) {
-      errors.push({
-        field: 'file',
-        message: 'Nama file mengandung karakter yang tidak diizinkan'
-      });
-    }
-
-    return errors;
-  }
-
-  /**
-   * Validate multiple file uploads
-   */
-  static validateMultipleFileUpload(
-    files: File[],
-    config: {
-      maxFiles?: number;
-      maxTotalSize?: number;
-      maxSize?: number;
-      allowedTypes?: string[];
-      maxFilename?: number;
-    } = {}
-  ): ValidationError[] {
-    const errors: ValidationError[] = [];
     
-    const {
-      maxFiles = 5,
-      maxTotalSize = 25 * 1024 * 1024, // 25MB total default
-      ...fileConfig
-    } = config;
-
-    // Check number of files
-    if (files.length === 0) {
-      errors.push({
-        field: 'files',
-        message: 'Minimal satu file harus diunggah'
-      });
-      return errors;
-    }
-
-    if (files.length > maxFiles) {
-      errors.push({
-        field: 'files',
-        message: `Maksimal ${maxFiles} file yang dapat diunggah sekaligus`
-      });
-    }
-
-    // Check total file size
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    if (totalSize > maxTotalSize) {
-      const maxTotalSizeMB = (maxTotalSize / (1024 * 1024)).toFixed(1);
-      errors.push({
-        field: 'files',
-        message: `Total ukuran file melebihi batas maksimal ${maxTotalSizeMB}MB`
-      });
-    }
-
-    // Validate each file
-    files.forEach((file, index) => {
-      const fileErrors = this.validateFileUpload(file, fileConfig);
-      fileErrors.forEach(error => {
-        errors.push({
-          field: `files[${index}]`,
-          message: `File "${file.name}": ${error.message}`
-        });
-      });
-    });
-
-    // Check for duplicate filenames
-    const filenames = files.map(file => file.name);
-    const duplicates = filenames.filter((name, index) => filenames.indexOf(name) !== index);
-    if (duplicates.length > 0) {
-      errors.push({
-        field: 'files',
-        message: `Nama file duplikat ditemukan: ${[...new Set(duplicates)].join(', ')}`
-      });
-    }
-
-    return errors;
+    return `Terdapat ${errorMessages.length} kesalahan: ${errorMessages.join(', ')}`;
   }
 
   /**
-   * Check if validation passed
+   * Get the first error message
    */
-  static isValid(errors: ValidationError[]): boolean {
-    return errors.length === 0;
+  static getFirstError(errors: ProductValidationErrors): string | null {
+    const errorMessages = Object.values(errors).filter(Boolean);
+    return errorMessages.length > 0 ? errorMessages[0] : null;
   }
 
   /**
-   * Format validation errors for display
+   * Validate single field
    */
-  static formatErrors(errors: ValidationError[]): string {
-    return errors.map(error => error.message).join('; ');
+  static validateField(fieldName: keyof ProductFormValues, value: any, data: ProductFormValues): string | null {
+    const fullErrors = this.validateProduct({ ...data, [fieldName]: value });
+    return fullErrors[fieldName] || null;
   }
 
   /**
-   * Group errors by field
+   * Sanitize and validate product data in one step
    */
-  static groupErrorsByField(errors: ValidationError[]): Record<string, string[]> {
-    const grouped: Record<string, string[]> = {};
-    
-    errors.forEach(error => {
-      if (!grouped[error.field]) {
-        grouped[error.field] = [];
-      }
-      grouped[error.field].push(error.message);
-    });
+  static sanitizeAndValidate(data: ProductFormValues): {
+    sanitizedData: ProductFormValues;
+    errors: ProductValidationErrors;
+    isValid: boolean;
+  } {
+    const sanitizedData = this.sanitizeProductData(data);
+    const errors = this.validateProduct(sanitizedData);
+    const isValid = this.isValid(errors);
 
-    return grouped;
+    return {
+      sanitizedData,
+      errors,
+      isValid
+    };
   }
 }

@@ -1,131 +1,74 @@
-// components/admin/product-search.tsx - Updated with new structure
+// components/admin/products/product-search.tsx
 "use client";
 
-import React, { useCallback, useEffect, useState, useTransition } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Search, X } from "lucide-react";
 
-interface ProductSearchProps {
-  initialQuery?: string;
-  placeholder?: string;
-  className?: string;
-}
-
-export default function ProductSearch({ 
-  initialQuery = "",
-  placeholder = "Cari produk...",
-  className = ""
-}: ProductSearchProps) {
+export default function ProductSearch() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-  
-  // State for search input
-  const [searchQuery, setSearchQuery] = useState(
-    initialQuery || searchParams.get("query") || ""
-  );
-  
-  // Function to create URL with search parameters
-  const createQueryString = useCallback(
-    (value: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      
-      if (value.trim()) {
-        params.set("query", value.trim());
-      } else {
-        params.delete("query");
-      }
-      
-      // Reset to first page when search changes
-      params.set("page", "1");
-      
-      return params.toString();
-    },
-    [searchParams]
-  );
-  
-  // Handle search form submission
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("query") || "");
+
+  // Update search query when URL changes
+  useEffect(() => {
+    setSearchQuery(searchParams.get("query") || "");
+  }, [searchParams]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     
-    startTransition(() => {
-      const queryString = createQueryString(searchQuery);
-      router.push(`/admin/products${queryString ? `?${queryString}` : ''}`);
-    });
-  };
-  
-  // Handle clear search
-  const handleClearSearch = () => {
-    setSearchQuery("");
+    const params = new URLSearchParams(searchParams);
     
-    startTransition(() => {
-      const queryString = createQueryString("");
-      router.push(`/admin/products${queryString ? `?${queryString}` : ''}`);
-    });
-  };
-  
-  // Handle input change with debouncing
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-  
-  // Update searchQuery when URL parameter changes (browser back/forward)
-  useEffect(() => {
-    const queryParam = searchParams.get("query") || "";
-    if (queryParam !== searchQuery) {
-      setSearchQuery(queryParam);
+    if (searchQuery.trim()) {
+      params.set("query", searchQuery.trim());
+    } else {
+      params.delete("query");
     }
-  }, [searchParams, searchQuery]);
-  
+    
+    // Reset to page 1 when searching
+    params.set("page", "1");
+    
+    router.push(`/admin/products?${params.toString()}`);
+  };
+
+  const clearSearch = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("query");
+    params.set("page", "1");
+    
+    setSearchQuery("");
+    router.push(`/admin/products?${params.toString()}`);
+  };
+
   return (
-    <form 
-      onSubmit={handleSearch} 
-      className={`relative w-full max-w-sm flex items-center ${className}`}
-    >
-      <div className="relative w-full">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+    <form onSubmit={handleSearch} className="flex gap-2 w-full max-w-sm">
+      <div className="relative flex-1">
+        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          type="search"
-          placeholder={placeholder}
+          placeholder="Cari produk, SKU, brand..."
           value={searchQuery}
-          onChange={handleInputChange}
-          className="w-full pl-8 pr-8"
-          disabled={isPending}
-          autoComplete="off"
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-8 pr-8"
         />
         {searchQuery && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="absolute right-0 top-0 h-9 w-9 p-0 hover:bg-transparent"
-            onClick={handleClearSearch}
-            disabled={isPending}
+            className="absolute right-1 top-1 h-6 w-6 p-0"
+            onClick={clearSearch}
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3" />
             <span className="sr-only">Hapus pencarian</span>
           </Button>
         )}
       </div>
-      
-      <Button 
-        type="submit" 
-        variant="secondary"
-        className="ml-2 flex-shrink-0"
-        disabled={isPending}
-      >
-        {isPending ? "Mencari..." : "Cari"}
+      <Button type="submit" size="sm">
+        Cari
       </Button>
-      
-      {/* Loading indicator */}
-      {isPending && (
-        <div className="absolute -bottom-6 left-0 flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          <span>Mencari produk...</span>
-        </div>
-      )}
     </form>
   );
 }

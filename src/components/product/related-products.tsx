@@ -1,118 +1,206 @@
-"use client"
+// src/components/product/related-products.tsx - FIXED dengan SimpleProductImage
+import Link from 'next/link';
+import { Heart, Eye, ShoppingCart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import SimpleProductImage from '@/components/product/simple-product-image';
+import { Product } from '@/types/product';
 
-import Image from "next/image"
-import { Heart, Eye } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+interface RelatedProductsProps {
+  products: Product[];
+  currentProductId: string;
+}
 
-const relatedProducts = [
-  {
-    id: 1,
-    name: "HAVIT HV-G92 Gamepad",
-    image: "/placeholder.svg?height=200&width=200",
-    price: 120,
-    originalPrice: 160,
-    discount: 40,
-    rating: 5,
-    reviews: 88,
-  },
-  {
-    id: 2,
-    name: "AK-900 Wired Keyboard",
-    image: "/placeholder.svg?height=200&width=200",
-    price: 960,
-    originalPrice: 1160,
-    discount: 35,
-    rating: 4,
-    reviews: 75,
-  },
-  {
-    id: 3,
-    name: "IPS LCD Gaming Monitor",
-    image: "/placeholder.svg?height=200&width=200",
-    price: 370,
-    originalPrice: 400,
-    discount: 30,
-    rating: 4.5,
-    reviews: 99,
-  },
-  {
-    id: 4,
-    name: "RGB liquid CPU Cooler",
-    image: "/placeholder.svg?height=200&width=200",
-    price: 160,
-    originalPrice: 170,
-    discount: 0,
-    rating: 5,
-    reviews: 65,
-  },
-]
+export default function RelatedProducts({ products, currentProductId }: RelatedProductsProps) {
+  // Filter out current product and limit to 4 products
+  const relatedProducts = products
+    .filter(product => product.id !== currentProductId)
+    .slice(0, 4);
 
-export default function RelatedProducts() {
+  // Format price to Indonesian Rupiah
+  const formatRupiah = (amount: number): string => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  // Get first valid image
+  const getFirstValidImage = (images: string[]): string => {
+    if (!images || images.length === 0) {
+      return '/placeholder.svg';
+    }
+    
+    const validImage = images.find(img => img && img.trim() !== '');
+    return validImage || '/placeholder.svg';
+  };
+
+  // Get condition badge
+  const getConditionBadge = (condition: string) => {
+    if (condition === 'new') {
+      return <Badge className="bg-green-100 text-green-800 text-xs">BARU</Badge>;
+    }
+    return null;
+  };
+
+  if (relatedProducts.length === 0) {
+    return null;
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <div className="h-6 w-1 bg-primary"></div>
-        <h2 className="text-lg font-semibold">Related Item</h2>
+    <section className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-900">Produk Terkait</h2>
+        <Link href="/products">
+          <Button variant="outline">
+            Lihat Semua Produk
+          </Button>
+        </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {relatedProducts.map((product) => (
-          <div key={product.id} className="group relative">
-            <div className="relative aspect-square overflow-hidden rounded-md bg-gray-100">
-              {product.discount > 0 && (
-                <Badge className="absolute left-2 top-2 z-10 bg-primary text-primary-foreground">
-                  -{product.discount}%
-                </Badge>
-              )}
-              <div className="absolute right-2 top-2 z-10 flex flex-col gap-2">
-                <button className="rounded-full bg-white p-1.5 opacity-80 transition-opacity hover:opacity-100">
-                  <Heart className="h-4 w-4" />
-                </button>
-                <button className="rounded-full bg-white p-1.5 opacity-80 transition-opacity hover:opacity-100">
-                  <Eye className="h-4 w-4" />
-                </button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {relatedProducts.map((product) => {
+          const firstImage = getFirstValidImage(product.images || []);
+          
+          return (
+            <Card key={product.id} className="group overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+              {/* Product Image */}
+              <div className="relative bg-gray-100 p-4">
+                {/* Condition Badge */}
+                <div className="absolute top-2 left-2 z-10">
+                  {getConditionBadge(product.condition)}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="absolute right-2 top-2 z-10 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button 
+                    variant="secondary" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full bg-white shadow-sm"
+                  >
+                    <Heart className="h-4 w-4" />
+                  </Button>
+                  <Link href={`/product/${product.id}`}>
+                    <Button 
+                      variant="secondary" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-full bg-white shadow-sm"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+
+                {/* Product Image */}
+                <Link href={`/product/${product.id}`}>
+                  <div className="flex h-[200px] items-center justify-center">
+                    <SimpleProductImage
+                      src={firstImage}
+                      alt={product.name}
+                      width={180}
+                      height={180}
+                      className="h-full w-full object-contain hover:scale-105 transition-transform"
+                      fallbackText={product.name ? product.name.charAt(0) : 'P'}
+                    />
+                  </div>
+                </Link>
+
+                {/* Add to Cart on Hover */}
+                <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button 
+                    className="w-full bg-red-600 hover:bg-red-700 text-white text-sm"
+                    size="sm"
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Tambah ke Keranjang
+                  </Button>
+                </div>
               </div>
-              <Image
-                src={product.image || "/placeholder.svg"}
-                alt={product.name}
-                fill
-                className="object-cover transition-transform group-hover:scale-105"
-              />
-            </div>
-            <div className="mt-4 space-y-2">
-              {product.id === 2 && (
-                <Button className="w-full bg-black text-white hover:bg-black/90">Add To Cart</Button>
-              )}
-              <h3 className="font-medium">{product.name}</h3>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-primary">${product.price}</span>
-                {product.originalPrice > product.price && (
-                  <span className="text-sm text-muted-foreground line-through">${product.originalPrice}</span>
-                )}
-              </div>
-              <div className="flex items-center">
-                <div className="flex">
-                  {Array(5)
-                    .fill(0)
-                    .map((_, i) => (
+
+              {/* Product Info */}
+              <CardContent className="p-4">
+                <Link href={`/product/${product.id}`}>
+                  <h3 className="font-medium text-gray-900 hover:text-red-600 transition-colors line-clamp-2 mb-2">
+                    {product.name}
+                  </h3>
+                </Link>
+
+                {/* Brand & Model */}
+                <div className="text-sm text-gray-600 mb-2">
+                  <span className="font-medium">{product.brand}</span>
+                  {product.model && <span className="ml-1">{product.model}</span>}
+                </div>
+
+                {/* Price */}
+                <div className="mb-2">
+                  <span className="text-lg font-bold text-red-600">
+                    {formatRupiah(product.price)}
+                  </span>
+                </div>
+
+                {/* Stock Status */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <div className={`w-2 h-2 rounded-full mr-1 ${
+                      product.stock > 10 ? "bg-green-500" : 
+                      product.stock > 0 ? "bg-yellow-500" : "bg-red-500"
+                    }`}></div>
+                    <span>
+                      {product.stock > 0 ? `Stok: ${product.stock}` : 'Habis'}
+                    </span>
+                  </div>
+
+                  {/* Quick View Button */}
+                  <Link href={`/product/${product.id}`}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+
+                {/* Rating Placeholder */}
+                <div className="mt-2 flex items-center">
+                  <div className="flex">
+                    {Array(5).fill(0).map((_, i) => (
                       <svg
                         key={i}
-                        className={`h-4 w-4 ${i < Math.floor(product.rating) ? "fill-yellow-400" : "fill-gray-300"}`}
+                        className={`h-4 w-4 ${i < 4 ? "fill-yellow-400" : "fill-gray-300"}`}
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                       >
                         <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                       </svg>
                     ))}
+                  </div>
+                  <span className="ml-2 text-xs text-gray-500">(4.0)</span>
                 </div>
-                <span className="ml-2 text-xs text-muted-foreground">({product.reviews})</span>
-              </div>
-            </div>
-          </div>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
-    </div>
-  )
-}
 
+      {/* View More Button */}
+      <div className="text-center">
+        <Link href="/products">
+          <Button variant="outline" className="px-8">
+            Jelajahi Produk Lainnya
+          </Button>
+        </Link>
+      </div>
+
+      {/* Debug Info - Development only */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+          <strong>Related Products Debug (FIXED):</strong> Showing {relatedProducts.length} related products
+        </div>
+      )}
+    </section>
+  );
+}

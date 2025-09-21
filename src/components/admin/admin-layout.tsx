@@ -1,4 +1,4 @@
-// components/admin/admin-layout.tsx - Admin Layout Component
+// components/admin/admin-layout.tsx - Admin Layout dengan Sidebar Toggle
 "use client";
 
 import Link from "next/link";
@@ -16,11 +16,12 @@ import {
   Users,
   Settings,
   Menu,
-  Home,
   BarChart3,
   FileText,
-  Bell,
-  Search
+  Warehouse,
+  Percent,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -32,68 +33,76 @@ const navigation = [
     name: "Dashboard",
     href: "/admin/dashboard",
     icon: LayoutDashboard,
-    current: false,
   },
   {
     name: "Produk",
     href: "/admin/products",
     icon: Package,
-    current: false,
-    badge: "New",
   },
   {
     name: "Kategori",
     href: "/admin/categories",
     icon: Tag,
-    current: false,
   },
   {
     name: "Pesanan",
     href: "/admin/orders",
     icon: ShoppingCart,
-    current: false,
-    disabled: true,
   },
   {
     name: "Pelanggan",
     href: "/admin/customers",
     icon: Users,
-    current: false,
-    disabled: true,
+  },
+  {
+    name: "Inventori",
+    href: "/admin/inventory",
+    icon: Warehouse,
+  },
+  {
+    name: "Kupon",
+    href: "/admin/coupons",
+    icon: Percent,
   },
   {
     name: "Laporan",
     href: "/admin/reports",
     icon: BarChart3,
-    current: false,
-    disabled: true,
   },
   {
     name: "Pengaturan",
     href: "/admin/settings",
     icon: Settings,
-    current: false,
-    disabled: true,
   },
 ];
 
-function AdminSidebar({ className }: { className?: string }) {
+function AdminSidebar({ 
+  className, 
+  isCollapsed = false 
+}: { 
+  className?: string;
+  isCollapsed?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
     <div className={className}>
       <div className="flex h-full max-h-screen flex-col gap-2">
         {/* Logo */}
-        <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+        <div className={`flex h-14 items-center border-b px-4 lg:h-[60px] transition-all duration-300 ${
+          isCollapsed ? "lg:px-2" : "lg:px-6"
+        }`}>
           <Link href="/admin/dashboard" className="flex items-center gap-2 font-semibold">
-            <Package className="h-6 w-6" />
-            <span>Admin Panel</span>
+            <Package className="h-6 w-6 flex-shrink-0" />
+            {!isCollapsed && <span>Admin Panel</span>}
           </Link>
         </div>
 
         {/* Navigation */}
         <div className="flex-1">
-          <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+          <nav className={`grid items-start text-sm font-medium transition-all duration-300 ${
+            isCollapsed ? "px-2" : "px-2 lg:px-4"
+          }`}>
             {navigation.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               
@@ -101,26 +110,21 @@ function AdminSidebar({ className }: { className?: string }) {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary group relative ${
                     isActive
                       ? "bg-muted text-primary"
                       : "text-muted-foreground"
-                  } ${
-                    item.disabled ? "opacity-50 cursor-not-allowed" : ""
                   }`}
-                  onClick={(e) => item.disabled && e.preventDefault()}
+                  title={isCollapsed ? item.name : ""}
                 >
-                  <item.icon className="h-4 w-4" />
-                  {item.name}
-                  {item.badge && (
-                    <Badge variant="secondary" className="ml-auto h-5 text-xs">
-                      {item.badge}
-                    </Badge>
-                  )}
-                  {item.disabled && (
-                    <Badge variant="outline" className="ml-auto h-5 text-xs">
-                      Soon
-                    </Badge>
+                  <item.icon className="h-4 w-4 flex-shrink-0" />
+                  {!isCollapsed && <span>{item.name}</span>}
+                  
+                  {/* Tooltip untuk collapsed state */}
+                  {isCollapsed && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded-md text-xs opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border shadow-md">
+                      {item.name}
+                    </div>
                   )}
                 </Link>
               );
@@ -129,10 +133,14 @@ function AdminSidebar({ className }: { className?: string }) {
         </div>
 
         {/* Footer */}
-        <div className="mt-auto p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <FileText className="h-3 w-3" />
-            <span>Admin Panel v1.0</span>
+        <div className={`mt-auto p-4 transition-all duration-300 ${
+          isCollapsed ? "px-2" : ""
+        }`}>
+          <div className={`flex items-center gap-2 text-xs text-muted-foreground ${
+            isCollapsed ? "justify-center" : ""
+          }`}>
+            <FileText className="h-3 w-3 flex-shrink-0" />
+            {!isCollapsed && <span>Admin Panel v1.0</span>}
           </div>
         </div>
       </div>
@@ -141,18 +149,39 @@ function AdminSidebar({ className }: { className?: string }) {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+    <div className={`grid min-h-screen w-full transition-all duration-300 ${
+      sidebarCollapsed 
+        ? "md:grid-cols-[60px_1fr] lg:grid-cols-[60px_1fr]" 
+        : "md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]"
+    }`}>
       {/* Desktop Sidebar */}
-      <AdminSidebar className="hidden border-r bg-muted/40 md:block" />
+      <div className="hidden border-r bg-muted/40 md:block relative">
+        <AdminSidebar isCollapsed={sidebarCollapsed} />
+        
+        {/* Toggle Button */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute -right-3 top-6 h-6 w-6 rounded-full bg-background border shadow-md hover:shadow-lg z-10"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        >
+          {sidebarCollapsed ? (
+            <ChevronRight className="h-3 w-3" />
+          ) : (
+            <ChevronLeft className="h-3 w-3" />
+          )}
+        </Button>
+      </div>
 
-      {/* Mobile Layout */}
+      {/* Mobile Layout & Main Content */}
       <div className="flex flex-col">
         {/* Mobile Header */}
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6 md:hidden">
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button
                 variant="outline"
@@ -169,6 +198,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </Sheet>
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Admin Panel</h1>
+          </div>
+        </header>
+
+        {/* Desktop Header dengan Toggle (Opsional) */}
+        <header className="hidden md:flex h-14 lg:h-[60px] items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >
+            <Menu className="h-4 w-4" />
+            <span className="sr-only">Toggle sidebar</span>
+          </Button>
+          <div className="w-full flex-1">
+            <h1 className="text-lg font-semibold">Dashboard</h1>
           </div>
         </header>
 
